@@ -17,12 +17,15 @@ router.use(authenticate, authorize('customer'));
  *
  * All routes require authentication and strictly 'customer' role.
  *
- * GET  /api/v1/customer/dashboard     — Retrieve customer overview data (credit balance, recent activity)
- * GET  /api/v1/customer/subscriptions — Retrieve customer active subscription packages & credit breakdown
- * POST /api/v1/customer/reveal        — Reveal listing contact phone (atomically deduct 1 credit or 0 if repeat)
+ * GET  /api/v1/customer/dashboard      — Retrieve customer overview data (credit balance, recent activity)
+ * GET  /api/v1/customer/subscriptions  — Retrieve customer active subscription packages & credit breakdown
+ * GET  /api/v1/customer/reveal/history — Retrieve customer contact reveal history (Task 10.8)
+ * POST /api/v1/customer/reveal         — Reveal listing contact phone (atomically deduct 1 credit or 0 if repeat)
  */
 router.get('/dashboard', authenticate, authorize('customer'), customerController.getCustomerDashboard);
 router.get('/subscriptions', authenticate, authorize('customer'), customerController.getCustomerSubscriptions);
+router.get('/reveal/history', authenticate, authorize('customer'), rejectClientContactOverrides, customerController.getRevealHistory);
+router.get('/reveals', authenticate, authorize('customer'), rejectClientContactOverrides, customerController.getRevealHistory);
 router.post('/reveal', authenticate, authorize('customer'), rejectClientContactOverrides, customerController.revealContact);
 router.post('/reveal/:listingId', authenticate, authorize('customer'), rejectClientContactOverrides, customerController.revealContact);
 

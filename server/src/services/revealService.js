@@ -1,4 +1,5 @@
 import { getAdminClient } from '../config/pocketbase.js';
+import { env } from '../config/env.js';
 import { sendError } from '../utils/apiResponse.js';
 
 /**
@@ -298,5 +299,162 @@ export async function revealContactForCustomer({ customerId, listingId } = {}) {
     revealedAt: revealData.revealedAt || null,
   };
 }
+
+/**
+ * Strictly serializes a revealed_contacts record and its expanded listing for customer history (Phase 10, Task 10.8).
+ *
+ * PRIVACY & SECURITY RULES:
+ * 1. Owner phone numbers are NEVER returned.
+ * 2. owner_contacts collection is NEVER queried or exposed.
+ * 3. PocketBase superuser credentials and internal tokens are NEVER exposed.
+ * 4. Private owner fields (email, password, etc.) are NEVER returned.
+ * 5. Deleted or unavailable listings return listing: null without fabricated data.
+ *
+ * @param {Object} item - Raw PocketBase revealed_contacts record
+ * @param {import('pocketbase').default} [pb] - Optional PocketBase client instance
+ * @returns {Object|null}
+ */
+export function serializeRevealHistoryEntry(item, pb) {
+  if (!item || typeof item !== 'object') {
+    return null;
+  }
+
+  const revealId = item.id;
+  const listingId = item.listing || (typeof item.expand?.listing?.id === 'string' ? item.expand.listing.id : '');
+  const revealedAt = item.revealed_at || item.created || null;
+  const rawListing = item.expand?.listing;
+
+  // Handle deleted or unavailable listing gracefully without leaking private details or fabricating data
+  if (!rawListing || typeof rawListing !== 'object') {
+    return {
+      id: revealId,
+      listing_id: listingId,
+      revealed_at: revealedAt,
+      created: item.created || null,
+      title: null,
+      category: null,
+      listing_type: null,
+      price: null,
+      area_sqft: null,
+      city: null,
+      area: null,
+      status: null,
+      cover_image: null,
+      listing: null,
+    };
+  }
+
+  // Resolve cover image from expanded images if present
+  let coverImage = null;
+  const rawImages = rawListing.expand?.listing_images_via_listing;
+  const images = Array.isArray(rawImages) ? rawImages : rawImages ? [rawImages] : [];
+  const coverRecord = images.find((img) => img.is_cover) || images[0] || null;
+
+  if (coverRecord && coverRecord.image) {
+    const baseUrl = pb?.baseUrl || env.POCKETBASE_URL || '';
+    const collection = coverRecord.collectionId || coverRecord.collectionName || 'listing_images';
+    coverImage = {
+      id: coverRecord.id,
+      image: coverRecord.image,
+      is_cover: Boolean(coverRecord.is_cover),
+      url: `${baseUrl}/api/files/${collection}/${coverRecord.id}/${coverRecord.image}`,
+      thumb_url: `${baseUrl}/api/files/${collection}/${coverRecord.id}/${coverRecord.image}?thumb=400x300`,
+    };
+  }
+
+  const safeListing = {
+    id: rawListing.id,
+    title: rawListing.title || '',
+    category: rawListing.category || 'other',
+    listing_type: rawListing.listing_type || 'rent',
+    price: Number(rawListing.price) || 0,
+    area_sqft: rawListing.area_sqft !== undefined && rawListing.area_sqft !== null ? Number(rawListing.area_sqft) : null,
+    address: rawListing.address || '',
+    city: rawListing.city || '',
+    area: rawListing.area || '',
+    status: rawListing.status || 'unknown',
+    cover_image: coverImage,
+  };
+
+  return {
+    id: revealId,
+    listing_id: rawListing.id || listingId,
+    revealed_at: revealedAt,
+    created: item.created || null,
+    title: safeListing.title,
+    category: safeListing.category,
+    listing_type: safeListing.listing_type,
+    price: safeListing.price,
+    area_sqft: safeListing.area_sqft,
+    city: safeListing.city,
+    area: safeListing.area,
+    status: safeListing.status,
+    cover_image: safeListing.cover_image,
+    listing: safeListing,
+  };
+}
+
+/**
+ * Retrieves paginated contact reveal history strictly scoped to the authenticated customer (Phase 10, Task 10.8).
+ *
+ * @param {string} customerId - Verified customer ID from authenticated session (req.user.id)
+ * @param {Object} [options={}]
+ * @param {number} [options.page=1] - Page number (1-indexed)
+ * @param {number} [options.perPage=10] - Number of items per page (bounded between 1 and 100)
+ * @returns {Promise<{
+ *   history: Array<Object>,
+ *   pagination: {
+ *     page: number,
+ *     perPage: number,
+ *     totalItems: number,
+ *     totalPages: number
+ *   }
+ * }>}
+ */
+export async function getCustomerRevealHistory(customerId, { page = 1, perPage = 10 } = {}) {
+  if (!customerId || typeof customerId !== 'string' || customerId.trim() === '') {
+    const err = new Error('customerId is required and must be a non-empty string.');
+    err.status = 400;
+    throw err;
+  }
+
+  const cleanCustomerId = customerId.trim();
+  const validPage = Math.max(1, Number(page) || 1);
+  const validPerPage = Math.min(100, Math.max(1, Number(perPage) || 10));
+
+  const pb = await getAdminClient();
+
+  let result;
+  try {
+    result = await pb.collection('revealed_contacts').getList(validPage, validPerPage, {
+      filter: pb.filter('customer = {:customerId}', { customerId: cleanCustomerId }),
+      sort: '-revealed_at,-id',
+      expand: 'listing,listing.listing_images_via_listing',
+      requestKey: null,
+    });
+  } catch (err) {
+    if (err?.status >= 500 || err?.status === 0) {
+      const safeErr = new Error('Failed to retrieve reveal history');
+      safeErr.status = 503;
+      throw safeErr;
+    }
+    const safeErr = new Error('Failed to retrieve reveal history');
+    safeErr.status = err?.status || 500;
+    throw safeErr;
+  }
+
+  const history = (result?.items || []).map((item) => serializeRevealHistoryEntry(item, pb));
+
+  return {
+    history,
+    pagination: {
+      page: result?.page || validPage,
+      perPage: result?.perPage || validPerPage,
+      totalItems: result?.totalItems || 0,
+      totalPages: result?.totalPages || 0,
+    },
+  };
+}
+
 
 

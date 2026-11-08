@@ -1,9 +1,10 @@
 import * as customerService from '../services/customer.service.js';
 import * as revealService from '../services/revealService.js';
+import { validateRevealHistoryQuery } from '../validators/reveal.validator.js';
 import { sendSuccess, sendError } from '../utils/apiResponse.js';
 
 /**
- * ShopFinder — Customer Portal Controller (Phase 8, Task 8.2 & Phase 9, Task 9.3 & Phase 10, Task 10.7)
+ * ShopFinder — Customer Portal Controller (Phase 8, Task 8.2 & Phase 9, Task 9.3 & Phase 10, Tasks 10.7 & 10.8)
  *
  * Implements customer-specific portal endpoints.
  */
@@ -96,4 +97,38 @@ export async function revealContact(req, res, next) {
     next(err);
   }
 }
+
+/**
+ * GET /api/v1/reveal/history
+ * Retrieves paginated contact reveal history for the authenticated customer (Phase 10, Task 10.8).
+ * Strictly filtered to the authenticated customer (req.user.id).
+ *
+ * @param {import('express').Request} req
+ * @param {import('express').Response} res
+ * @param {import('express').NextFunction} next
+ */
+export async function getRevealHistory(req, res, next) {
+  try {
+    // 1. Customer identity derived exclusively from authenticated session (req.user.id)
+    const customerId = req.user?.id;
+    if (!customerId || typeof customerId !== 'string' || customerId.trim() === '') {
+      return sendError(res, 'Authentication required', 401);
+    }
+
+    // 2. Validate and normalize query parameters (page, perPage, limit)
+    const { page, perPage } = validateRevealHistoryQuery(req.query);
+
+    // 3. Retrieve paginated history from service layer
+    const data = await revealService.getCustomerRevealHistory(customerId.trim(), { page, perPage });
+
+    return sendSuccess(res, data, 200, 'Customer reveal history retrieved successfully');
+  } catch (err) {
+    const status = err.status || err.statusCode || 500;
+    if (status < 500) {
+      return sendError(res, err.message, status, err.details || null);
+    }
+    next(err);
+  }
+}
+
 
