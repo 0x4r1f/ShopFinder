@@ -13,6 +13,12 @@ describe('Phase 11, Task 11.4 — Payment Webhook Handler & Cryptographic Signat
   let baseUrl;
   let mockAdapter;
 
+  let testCustomer;
+  let testPlan;
+  const createdUserIds = [];
+  const createdPlanIds = [];
+  const createdPaymentIds = [];
+
   const testSecret = 'mock_secret_key_shopfinder_test';
 
   before(async () => {
@@ -22,6 +28,60 @@ describe('Phase 11, Task 11.4 — Payment Webhook Handler & Cryptographic Signat
     mockAdapter = new MockPaymentAdapter({ secretKey: testSecret });
     paymentService.registerAdapter(mockAdapter);
     paymentService.setDefaultProviderName('mock');
+
+    // Create test customer & plan
+    const timestamp = Date.now();
+    testCustomer = await adminPb.collection('users').create({
+      email: `webhook_test_${timestamp}@shopfinder.local`,
+      password: 'Password123!',
+      passwordConfirm: 'Password123!',
+      name: 'Webhook Test User',
+      role: 'customer',
+      is_active: true,
+    });
+    createdUserIds.push(testCustomer.id);
+
+    testPlan = await adminPb.collection('subscription_plans').create({
+      name: `Webhook Plan ${timestamp}`,
+      price: 299,
+      credits: 10,
+      is_active: true,
+    });
+    createdPlanIds.push(testPlan.id);
+
+    // Create seeded pending payments
+    const p1 = await adminPb.collection('payments').create({
+      user: testCustomer.id,
+      plan: testPlan.id,
+      amount: 299,
+      currency: 'BDT',
+      provider: 'mock',
+      provider_ref: 'MOCK_TXN_VERIFY_100',
+      status: 'pending',
+    });
+    createdPaymentIds.push(p1.id);
+
+    const p2 = await adminPb.collection('payments').create({
+      user: testCustomer.id,
+      plan: testPlan.id,
+      amount: 999,
+      currency: 'BDT',
+      provider: 'mock',
+      provider_ref: 'MOCK_ORDER_RAW_1',
+      status: 'pending',
+    });
+    createdPaymentIds.push(p2.id);
+
+    const p3 = await adminPb.collection('payments').create({
+      user: testCustomer.id,
+      plan: testPlan.id,
+      amount: 299,
+      currency: 'BDT',
+      provider: 'mock',
+      provider_ref: 'MOCK_TXN_NO_CREDIT_TEST',
+      status: 'pending',
+    });
+    createdPaymentIds.push(p3.id);
 
     // Start ephemeral server
     await new Promise((resolve) => {
@@ -35,6 +95,24 @@ describe('Phase 11, Task 11.4 — Payment Webhook Handler & Cryptographic Signat
   after(async () => {
     if (server) {
       await new Promise((resolve) => server.close(resolve));
+    }
+
+    for (const id of createdPaymentIds) {
+      try {
+        await adminPb.collection('payments').delete(id);
+      } catch {}
+    }
+
+    for (const id of createdPlanIds) {
+      try {
+        await adminPb.collection('subscription_plans').delete(id);
+      } catch {}
+    }
+
+    for (const id of createdUserIds) {
+      try {
+        await adminPb.collection('users').delete(id);
+      } catch {}
     }
   });
 
