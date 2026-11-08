@@ -4,6 +4,7 @@ import { useAuth } from '../context/AuthContext.jsx';
 import ownerService from '../services/ownerService.js';
 import OwnerSummaryCards from '../components/owner/OwnerSummaryCards.jsx';
 import OwnerListingsTable from '../components/owner/OwnerListingsTable.jsx';
+import OwnerAnalyticsOverview from '../components/owner/OwnerAnalyticsOverview.jsx';
 import DeleteListingModal from '../components/owner/DeleteListingModal.jsx';
 import { Button } from '../components/ui/button.jsx';
 import Spinner from '../components/common/Spinner.jsx';
@@ -16,6 +17,8 @@ import {
   ChevronRightIcon,
   RefreshIcon,
   ShieldCheckIcon,
+  BuildingIcon,
+  EyeIcon,
 } from '../components/common/Icons.jsx';
 
 /**
@@ -45,6 +48,10 @@ export default function OwnerDashboardPage() {
   const [error, setError] = useState(null);
   const [sort, setSort] = useState('-created');
   const [page, setPage] = useState(1);
+
+  // Active Tab ('listings' | 'analytics')
+  const [activeTab, setActiveTab] = useState(location.state?.tab || 'listings');
+  const [selectedListingForAnalytics, setSelectedListingForAnalytics] = useState(location.state?.listingId || null);
 
   // Success / Info notifications
   const [feedback, setFeedback] = useState(location.state?.feedback || null);
@@ -254,20 +261,67 @@ export default function OwnerDashboardPage() {
       )}
 
       {/* ===================================================================== */}
-      {/* 2. Portfolio KPI Summary Cards                                        */}
+      {/* 2. Navigation Tabs (Listings vs Performance Analytics)                */}
       {/* ===================================================================== */}
-      <OwnerSummaryCards
-        totalItems={totalItems}
-        approvedCount={approvedCount}
-        pendingCount={pendingCount}
-        rejectedCount={rejectedCount}
-        isPaginated={isPaginated}
-      />
+      <div className="flex items-center gap-6 border-b border-border" role="tablist">
+        <button
+          type="button"
+          role="tab"
+          id="owner-tab-listings"
+          aria-selected={activeTab === 'listings'}
+          aria-controls="owner-panel-listings"
+          onClick={() => setActiveTab('listings')}
+          className={`pb-3 text-sm font-semibold transition-colors border-b-2 flex items-center gap-2 ${
+            activeTab === 'listings'
+              ? 'border-primary text-primary'
+              : 'border-transparent text-muted-foreground hover:text-foreground'
+          }`}
+        >
+          <BuildingIcon className="w-4 h-4" />
+          <span>Properties & Listings</span>
+          <span className="px-2 py-0.5 rounded-full text-xs bg-muted text-muted-foreground font-normal">
+            {totalItems}
+          </span>
+        </button>
+
+        <button
+          type="button"
+          role="tab"
+          id="owner-tab-analytics"
+          aria-selected={activeTab === 'analytics'}
+          aria-controls="owner-panel-analytics"
+          onClick={() => setActiveTab('analytics')}
+          className={`pb-3 text-sm font-semibold transition-colors border-b-2 flex items-center gap-2 ${
+            activeTab === 'analytics'
+              ? 'border-primary text-primary'
+              : 'border-transparent text-muted-foreground hover:text-foreground'
+          }`}
+        >
+          <EyeIcon className="w-4 h-4" />
+          <span>Performance & Analytics</span>
+        </button>
+      </div>
 
       {/* ===================================================================== */}
-      {/* 3. My Listings Section (Table / Cards / Sorting / Pagination)         */}
+      {/* 3. Tab Content View                                                   */}
       {/* ===================================================================== */}
-      <div className="space-y-4">
+      {activeTab === 'analytics' ? (
+        <div id="owner-panel-analytics" role="tabpanel" aria-labelledby="owner-tab-analytics">
+          <OwnerAnalyticsOverview initialListingId={selectedListingForAnalytics} />
+        </div>
+      ) : (
+        <div id="owner-panel-listings" role="tabpanel" aria-labelledby="owner-tab-listings" className="space-y-8">
+          {/* Portfolio KPI Summary Cards */}
+          <OwnerSummaryCards
+            totalItems={totalItems}
+            approvedCount={approvedCount}
+            pendingCount={pendingCount}
+            rejectedCount={rejectedCount}
+            isPaginated={isPaginated}
+          />
+
+          {/* My Listings Section (Table / Cards / Sorting / Pagination) */}
+          <div className="space-y-4">
         {/* Controls Bar: Section Title + Result Count + Sort Dropdown */}
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 pt-2">
           <div>
@@ -409,7 +463,9 @@ export default function OwnerDashboardPage() {
             )}
           </>
         )}
-      </div>
+          </div>
+        </div>
+      )}
 
       {/* ===================================================================== */}
       {/* Delete Confirmation Modal                                             */}

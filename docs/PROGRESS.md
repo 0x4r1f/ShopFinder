@@ -184,11 +184,21 @@
 
 ---
 
-## Phases 12–14: NOT STARTED ☐
+## PHASE 12 — Analytics & Final UI: IN PROGRESS 🔄
+
+| Task | Status | Notes |
+|------|:---:|-------|
+| 12.1 Implement Owner analytics endpoints & UI: listing view metrics, inquiry conversion rates, daily engagement charts | ✅ | Created dedicated `listing_views` PocketBase collection (`pbc_237664634`) and implemented server-side view tracking in `server/src/services/listingViewService.js` with SHA-256 IP hashing and 30-minute deduplication window. Integrated view tracking into `GET /api/v1/listings/:id` (excluding unapproved listings, owner self-views, and admin reviews). Implemented authenticated owner analytics endpoint at `GET /api/v1/owner/analytics` (`ownerAnalyticsService.js`, `ownerAnalytics.controller.js`) strictly scoped to `req.user.id`. Computes aggregate views, contact reveal inquiries, favorites, conversion rates (`(reveals/views)*100`), 7-day and 30-day continuous daily engagement trends, and listing performance comparison table with strict cross-owner isolation (HTTP 404). Installed and integrated Recharts for responsive daily engagement area charts (`OwnerEngagementChart.jsx`). Built accessible `OwnerAnalyticsOverview.jsx` panel with 4 KPI summary cards, 7d/30d timeframe toggle, listing filter, and empty/loading/error states. Integrated tab navigation into `OwnerDashboardPage.jsx`. Built 17 automated integration tests in `server/tests/owner-analytics.test.js` (17/17 passing) and 11 unit/integration tests in `client/src/tests/owner-analytics.test.jsx` (11/11 passing). Confirmed 100% test pass rate across all client and backend regression suites; verified clean Vite production build. |
+| 12.2 Implement Admin platform analytics endpoints & UI: user growth, listing volume by city/category, revenue metrics, credit consumption rates | ☐ | Next task |
+| 12.3 Complete platform-wide UI polish: responsive layout adjustments (mobile, tablet, desktop), micro-interactions, empty states, and loading skeletons | ☐ | Not started |
+| 12.4 Build platform static pages: About Us, Terms of Service, Privacy Policy, Contact & FAQ | ☐ | Not started |
+
+---
+
+## Phases 13–14: NOT STARTED ☐
 
 | Phase | Name | Status |
 |:---:|---|:---:|
-| **Phase 12** | Analytics & Final UI | ☐ Not started |
 | **Phase 13** | Security & QA | ☐ Not started |
 | **Phase 14** | Deployment Preparation | ☐ Not started |
 

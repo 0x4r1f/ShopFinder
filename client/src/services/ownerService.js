@@ -278,6 +278,30 @@ export async function updateOwnerProfile(payload) {
   return response?.data?.profile || null;
 }
 
+/**
+ * Retrieves aggregate and listing-level analytics for the authenticated owner (Phase 12, Task 12.1).
+ *
+ * @param {Object} [options={}]
+ * @param {'7d'|'30d'} [options.period='7d'] - Time window ('7d' or '30d')
+ * @param {string|null} [options.listingId=null] - Optional single listing filter
+ * @param {AbortSignal} [options.signal]
+ * @returns {Promise<Object>} Owner analytics payload
+ */
+export async function getOwnerAnalytics(options = {}) {
+  const { period = '7d', listingId = null, signal } = options;
+  const params = { period };
+  if (listingId) {
+    params.listingId = listingId;
+  }
+
+  const response = await api.get('/api/v1/owner/analytics', {
+    params,
+    signal,
+  });
+
+  return response?.data || null;
+}
+
 const ownerService = {
   getOwnerListings,
   deleteListing,
@@ -290,6 +314,7 @@ const ownerService = {
   reorderListingImages,
   getOwnerProfile,
   updateOwnerProfile,
+  getOwnerAnalytics,
 };
 
 export default ownerService;

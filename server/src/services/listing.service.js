@@ -1,4 +1,5 @@
 import { getAdminClient } from '../config/pocketbase.js';
+import { recordListingView } from './listingViewService.js';
 
 /**
  * ShopFinder — Public Listing Service (Phase 5, Task 5.1)
@@ -293,7 +294,7 @@ export async function getFeaturedListings({ limit = 6 } = {}) {
  * @param {Object|null} [options.user=null] - Authenticated user record (if any)
  * @returns {Promise<Object>} Sanitized listing details with images array
  */
-export async function getListingById(id, { user = null } = {}) {
+export async function getListingById(id, { user = null, ip = '', userAgent = '' } = {}) {
   // Validate ID format (PocketBase IDs are 15 alphanumeric characters)
   if (!id || typeof id !== 'string' || !/^[a-zA-Z0-9]{15}$/.test(id.trim())) {
     const err = new Error('Listing not found');
@@ -330,6 +331,18 @@ export async function getListingById(id, { user = null } = {}) {
     const err = new Error('Listing not found');
     err.status = 404;
     throw err;
+  }
+
+  // Record page-view event in listing_views collection (Phase 12, Task 12.1)
+  if (record.status === 'approved') {
+    await recordListingView({
+      listingId: cleanId,
+      listingOwnerId: ownerId,
+      status: record.status,
+      user,
+      ip,
+      userAgent,
+    });
   }
 
   // Fetch full gallery of listing images sorted by cover, display order, creation

@@ -232,7 +232,13 @@ export async function getFeaturedListings(req, res, next) {
 export async function getListingById(req, res, next) {
   try {
     const { id } = req.params;
-    const listing = await listingService.getListingById(id, { user: req.user });
+    const clientIp = req.ip || req.socket?.remoteAddress || '';
+    const userAgent = req.headers['user-agent'] || '';
+    const listing = await listingService.getListingById(id, {
+      user: req.user,
+      ip: clientIp,
+      userAgent,
+    });
 
     return sendSuccess(res, { listing }, 200);
   } catch (err) {
