@@ -30,18 +30,18 @@ Tasks:
 ---
 
 ### PHASE 2 — Database Architecture
-> **Requires authorization before starting**
+> Status: In Progress 🔄
 
 Tasks:
-- [ ] 2.1 Run PocketBase locally (`127.0.0.1:8090`) and initialize administrative access
-- [ ] 2.2 Configure `users` collection (PocketBase auth collection: email, password, name, role `customer`/`owner`/`admin`, avatar, is_active; phone completely removed per D-014)
-- [ ] 2.3 Create `owner_contacts` collection (fields: `owner` relation to users, `phone` text; unique index on `owner`; deny-all public/client access rules per D-014)
-- [ ] 2.4 Create `listings` collection (fields: `owner`, `title`, `description`, `category`, `listing_type`, `price`, `area_sqft`, `address`, `city`, `area`, `status`, `rejection_note`, `is_featured`)
-- [ ] 2.5 Create `listing_images` collection (fields: `listing` relation, `image` file, `is_cover`, `order`)
-- [ ] 2.6 Create `subscription_plans` collection (fields: `name`, `price`, `credits`, `is_active`, `description`)
-- [ ] 2.7 Create `user_subscriptions` collection (fields: `user` relation, `plan` relation, `credits_used`, `credits_total`, `status`, `purchased_at`, `expires_at`)
-- [ ] 2.8 Create `revealed_contacts` collection (fields: `customer` relation, `listing` relation, `owner` relation, `revealed_at`; unique index on `(customer, listing)`)
-- [ ] 2.9 Create `saved_listings` collection (fields: `customer` relation, `listing` relation, `saved_at`; unique index on `(customer, listing)`)
+- [x] 2.1 Run PocketBase locally (`127.0.0.1:8090`) and initialize administrative access
+- [x] 2.2 Configure `users` collection (PocketBase auth collection: email, password, name, role `customer`/`owner`/`admin`, avatar, is_active; phone completely removed per D-014)
+- [x] 2.3 Create `owner_contacts` collection (fields: `owner` relation to users, `phone` text; unique index on `owner`; deny-all public/client access rules per D-014)
+- [x] 2.4 Create `listings` collection (fields: `owner`, `title`, `description`, `category`, `listing_type`, `price`, `area_sqft`, `address`, `city`, `area`, `status`, `rejection_note`, `is_featured`)
+- [x] 2.5 Create `listing_images` collection (fields: `listing` relation, `image` file, `is_cover`, `order`)
+- [x] 2.6 Create `subscription_plans` collection (fields: `name`, `price`, `credits`, `is_active`, `description`)
+- [x] 2.7 Create `user_subscriptions` collection (fields: `user` relation, `plan` relation, `credits_used`, `credits_total`, `status`, `purchased_at`, `expires_at`)
+- [x] 2.8 Create `revealed_contacts` collection (fields: `customer` relation, `listing` relation, `owner` relation, `revealed_at`; unique index on `(customer, listing)`)
+- [x] 2.9 Create `saved_listings` collection (fields: `customer` relation, `listing` relation, `saved_at`; unique index on `(customer, listing)`)
 - [ ] 2.10 Create `payments` collection (fields: `user` relation, `plan` relation, `subscription` relation, `amount`, `currency`, `provider`, `provider_ref`, `status`)
 - [ ] 2.11 Create `notifications` collection (fields: `user` relation, `type`, `message`, `is_read`)
 - [ ] 2.12 Set collection-level access rules (deny-all default for sensitive collections; backend Admin SDK only)
@@ -50,44 +50,43 @@ Tasks:
 ---
 
 ### PHASE 3 — Authentication & Authorization
-> **Requires authorization before starting**
+> Status: COMPLETED ✅
 
 Tasks:
-- [ ] 3.1 Initialize server-side PocketBase Admin SDK client singleton (`server/src/config/pocketbase.js`)
-- [ ] 3.2 Implement authentication endpoints in Express: registration (`POST /api/v1/auth/register`), login (`POST /api/v1/auth/login`), logout (`POST /api/v1/auth/logout`)
-- [ ] 3.3 Set up server-set httpOnly cookies (`pb_auth`) with `HttpOnly`, `Secure` (production), `SameSite=Strict`, `path=/` (D-010)
-- [ ] 3.4 Implement request-scoped JWT verification middleware (`authenticate.js` using isolated `new PocketBase()` + `authRefresh()`)
-- [ ] 3.5 Implement role-based authorization middleware factory (`authorize.js`) for `customer`, `owner`, and `admin` roles
-- [ ] 3.6 Implement user profile endpoints (`GET /api/v1/users/me`, `PATCH /api/v1/users/me`) with strict sanitization (phone excluded)
-- [ ] 3.7 Implement frontend Auth Context (`AuthContext.jsx`), authentication API service layer, and role-based route guard component (`ProtectedRoute.jsx`)
-- [ ] 3.8 Build Login and Registration pages in client
+- [x] 3.1 Initialize server-side PocketBase Admin SDK client singleton (`server/src/config/pocketbase.js`)
+- [x] 3.2 Implement authentication endpoints in Express: registration (`POST /api/v1/auth/register`), login (`POST /api/v1/auth/login`), logout (`POST /api/v1/auth/logout`)
+- [x] 3.3 Set up server-set httpOnly cookies (`pb_auth`) with `HttpOnly`, `Secure` (production), `SameSite=Strict`, `path=/` (D-010)
+- [x] 3.4 Implement request-scoped JWT verification middleware (`authenticate.js` using isolated `new PocketBase()` + `authRefresh()`)
+- [x] 3.5 Implement role-based authorization middleware factory (`authorize.js`) for `customer`, `owner`, and `admin` roles
+- [x] 3.6 Implement user profile endpoints (`GET /api/v1/users/me`, `PATCH /api/v1/users/me`) with strict sanitization (phone excluded)
+- [x] 3.7 Implement frontend Auth Context (`AuthContext.jsx`), authentication API service layer, and role-based route guard component (`ProtectedRoute.jsx`)
+- [x] 3.8 Build Login and Registration pages in client (`client/src/pages/LoginPage.jsx`, `RegisterPage.jsx`)
 
 ---
 
 ### PHASE 4 — UI Foundation
-> **Requires authorization before starting**
+> Status: COMPLETED ✅
 
 Tasks:
-- [ ] 4.1 Install and configure Tailwind CSS and theme tokens in `client/`
-- [ ] 4.2 Set up shadcn/ui component library structure (Button, Input, Form, Card, Dialog/Modal, Badge, Dropdown, Table, Skeleton, Alert)
-- [ ] 4.3 Configure React Router layout hierarchy (`AppRouter.jsx`)
-- [ ] 4.4 Build global layout components: Header with role-aware navigation, Footer, Mobile Navigation menu, and Sidebar
-- [ ] 4.5 Build reusable UI feedback components (Toast/Notification banner, Loading Spinner, Empty State, Error Boundary)
-- [ ] 4.6 Set up centralized client API service instance (Fetch/Axios client configured with `credentials: 'include'`)
+- [x] 4.1 Install and configure Tailwind CSS and theme tokens in `client/`
+- [x] 4.2 Set up shadcn/ui component library structure (`components.json`, `@/` alias, theme tokens, `Button`, `Input`, `Label` primitives)
+- [x] 4.3 Configure React Router layout hierarchy (`AppRouter.jsx`)
+- [x] 4.4 Build global layout components: Header with role-aware navigation, Footer, Mobile Navigation menu, and Sidebar
+- [x] 4.5 Build reusable UI feedback components (Toast/Notification banner, Loading Spinner, Empty State, Error Boundary)
+- [x] 4.6 Set up centralized client API service instance (Fetch/Axios client configured with `credentials: 'include'`)
 
 ---
 
-### PHASE 5 — Homepage & Marketplace
-> **Requires authorization before starting**
+### PHASE 5 — Homepage & Marketplace: COMPLETED ✅
 
 Tasks:
-- [ ] 5.1 Build Homepage: Hero search banner, property category grid, quick city selector, featured commercial listings carousel/grid, value proposition section
-- [ ] 5.2 Build Marketplace browse page with responsive grid and list view toggles
-- [ ] 5.3 Implement multi-parameter search & filtering (category, rent/sale, price range, area sqft, city, area)
-- [ ] 5.4 Implement sorting controls (newest, price ascending/descending) and server-side pagination
-- [ ] 5.5 Build Property Details page: photo gallery/carousel, key specifications, price, detailed description, location address, amenities list
-- [ ] 5.6 Build safe owner information card with masked contact information and placeholder "Reveal Contact" button (hooks into Phase 10)
-- [ ] 5.7 Enforce public API response sanitization ensuring owner phone numbers never appear in listing queries or relation expansions
+- [x] 5.1 Build Homepage: Hero search banner, property category grid, quick city selector, featured commercial listings carousel/grid, value proposition section
+- [x] 5.2 Build Marketplace browse page with responsive grid and list view toggles
+- [x] 5.3 Implement multi-parameter search & filtering (category, rent/sale, price range, area sqft, city, area)
+- [x] 5.4 Implement sorting controls (newest, price ascending/descending) and server-side pagination
+- [x] 5.5 Build Property Details page: photo gallery/carousel, key specifications, price, detailed description, location address, amenities list
+- [x] 5.6 Build safe owner information card with masked contact information and placeholder "Reveal Contact" button (hooks into Phase 10)
+- [x] 5.7 Enforce public API response sanitization ensuring owner phone numbers never appear in listing queries or relation expansions
 
 ---
 
@@ -95,13 +94,13 @@ Tasks:
 > **Requires authorization before starting**
 
 Tasks:
-- [ ] 6.1 Implement listing creation endpoint (`POST /api/v1/listings`) defaulting new submissions to `pending` status
-- [ ] 6.2 Implement owner listing editing & deletion endpoints with strict ownership verification (`listing.owner === req.user.id`)
-- [ ] 6.3 Implement listing image upload endpoint supporting multiple photos and cover photo selection
-- [ ] 6.4 Resolve D-002: Define listing edit re-approval policy (revert to `pending` vs retain `approved`)
-- [ ] 6.5 Build Owner Dashboard: My Listings table with status badges (`pending`, `approved`, `rejected`), listing view counter
-- [ ] 6.6 Build Property Creation & Editing forms with image drag-and-drop uploader and client-side validation
-- [ ] 6.7 Build Owner Business Profile management page (store contact phone into `owner_contacts` via backend Admin SDK per D-014)
+- [x] 6.1 Implement listing creation endpoint (`POST /api/v1/listings`) defaulting new submissions to `pending` status
+- [x] 6.2 Implement owner listing editing & deletion endpoints with strict ownership verification (`listing.owner === req.user.id`)
+- [x] 6.3 Implement listing image upload endpoint supporting multiple photos and cover photo selection
+- [x] 6.4 Formally document D-002 listing re-approval policy (core-field edits and image modifications on approved listings revert status to pending).
+- [x] 6.5 Build Owner Dashboard: My Listings table with status badges (`pending`, `approved`, `rejected`), listing view counter
+- [x] 6.6 Build Property Creation & Editing forms with image uploader, accessible reordering, and client-side validation
+- [x] 6.7 Build Owner Business Profile management page (store contact phone into `owner_contacts` via backend Admin SDK per D-014)
 
 ---
 
@@ -109,12 +108,12 @@ Tasks:
 > **Requires authorization before starting**
 
 Tasks:
-- [ ] 7.1 Build Admin Dashboard overview: total listings, pending review count, user counts, system activity
-- [ ] 7.2 Implement Admin review queue endpoint (`GET /api/v1/admin/listings/pending`)
-- [ ] 7.3 Implement Admin approval actions (`POST /api/v1/admin/listings/:id/approve`, `POST /api/v1/admin/listings/:id/reject` with rejection note, `archive`)
-- [ ] 7.4 Build Admin Listing Review interface with preview, one-click approve, and rejection modal with mandatory reason
-- [ ] 7.5 Implement Admin User Management endpoints and UI (list users, filter by role, activate/deactivate accounts)
-- [ ] 7.6 Enforce authorization: ensure owners cannot approve their own listings; admin operations restricted strictly to `role = 'admin'`
+- [x] 7.1 Build Admin Dashboard overview: total listings, pending review count, user counts, system activity
+- [x] 7.2 Implement Admin review queue endpoint (`GET /api/v1/admin/listings/pending`)
+- [x] 7.3 Implement Admin approval actions (`POST /api/v1/admin/listings/:id/approve`, `POST /api/v1/admin/listings/:id/reject` with rejection note, `archive`)
+- [x] 7.4 Build Admin Listing Review interface with preview, one-click approve, and rejection modal with mandatory reason
+- [x] 7.5 Implement Admin User Management endpoints and UI (list users, filter by role, activate/deactivate accounts)
+- [x] 7.6 Enforce authorization: ensure owners cannot approve their own listings; admin operations restricted strictly to `role = 'admin'`
 
 ---
 
@@ -122,11 +121,11 @@ Tasks:
 > **Requires authorization before starting**
 
 Tasks:
-- [ ] 8.1 Implement Favorite/Saved listings endpoints (`POST /api/v1/favorites/:listingId`, `DELETE /api/v1/favorites/:listingId`, `GET /api/v1/favorites`)
-- [ ] 8.2 Build Customer Dashboard: credit balance summary widget, recent activity feed, quick links
-- [ ] 8.3 Build Saved Listings page with quick unsave and property card links
-- [ ] 8.4 Build Customer Profile management page (update name, email, avatar)
-- [ ] 8.5 Build Customer Reveal History container (prepared to display data populated by Phase 10)
+- [x] 8.1 Implement Favorite/Saved listings endpoints (`POST /api/v1/favorites/:listingId`, `DELETE /api/v1/favorites/:listingId`, `GET /api/v1/favorites`)
+- [x] 8.2 Build Customer Dashboard: credit balance summary widget, recent activity feed, quick links
+- [x] 8.3 Build Saved Listings page with quick unsave and property card links
+- [x] 8.4 Build Customer Profile management page (update name, email, avatar)
+- [x] 8.5 Build Customer Reveal History container (prepared to display data populated by Phase 10)
 
 ---
 
@@ -134,11 +133,11 @@ Tasks:
 > **Requires authorization before starting**
 
 Tasks:
-- [ ] 9.1 Resolve D-001: Finalize customer billing policy (recurring subscription vs. one-time credit package)
-- [ ] 9.2 Implement Subscription Plans endpoints (`GET /api/v1/subscriptions/plans`, Admin plan management endpoints)
-- [ ] 9.3 Implement customer active subscription tracking & credit balance query service (`user_subscriptions`)
-- [ ] 9.4 Build Subscription Plans pricing page displaying Starter (৳299 / 10 credits) and Pro (৳999 / 100 credits)
-- [ ] 9.5 Build plan selection flow and credit balance indicator in header and customer dashboard
+- [x] 9.1 Resolve D-001: Finalize customer billing policy (recurring subscription vs. one-time credit package)
+- [x] 9.2 Implement Subscription Plans endpoints (`GET /api/v1/subscriptions/plans`, Admin plan management endpoints)
+- [x] 9.3 Implement customer active subscription tracking & credit balance query service (`user_subscriptions`)
+- [x] 9.4 Build Subscription Plans pricing page displaying Starter (৳299 / 10 credits) and Pro (৳999 / 100 credits)
+- [x] 9.5 Build plan selection flow and credit balance indicator in header and customer dashboard
 
 ---
 
@@ -146,9 +145,9 @@ Tasks:
 > **Requires authorization before starting**
 
 Tasks:
-- [ ] 10.1 Implement PocketBase custom route `pocketbase/pb_hooks/reveal.pb.js` using `$app.runInTransaction()` and `txApp` (D-013)
-- [ ] 10.2 Enforce customer identity strictly from authenticated PocketBase session (`e.requestInfo().auth.id`) — reject client-supplied `customerId`
-- [ ] 10.3 Implement idempotent check in hook: return owner contact immediately with zero credit deduction if previously revealed by this customer
+- [x] 10.1 Implement PocketBase custom route `pocketbase/pb_hooks/reveal.pb.js` using `$app.runInTransaction()` and `txApp` (D-013)
+- [x] 10.2 Enforce customer identity through trusted Express delegation and PocketBase validation (D-017)
+- [x] 10.3 Implement idempotent check in hook: return owner contact immediately with zero credit deduction if previously revealed by this customer
 - [ ] 10.4 Verify customer active subscription and credit balance (`credits_remaining > 0`); abort with transaction rollback if insufficient
 - [ ] 10.5 Atomically increment `credits_used` and create `revealed_contacts` record using `txApp` with database unique constraint backstop
 - [ ] 10.6 Retrieve private owner phone from `owner_contacts` collection (D-014) only on committed transaction

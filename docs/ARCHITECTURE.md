@@ -355,21 +355,47 @@ This prevents one owner from modifying another owner's listings.
 - If the customer has already revealed this listing, return the contact **without** deducting credits.
 - Concurrent requests for the same `(customer, listing)` must not cause double deductions.
 
-### D-013 Approved: `pb_hooks` Custom Route with `$app.runInTransaction()`
+### D-013 & D-017 Approved: `pb_hooks` Custom Route with `$app.runInTransaction()` and Trusted Express Identity Delegation
 
 The entire contact reveal and credit deduction operation runs inside a custom PocketBase server-side hook using a true SQLite ACID transaction. This is the **only** authorized implementation pattern.
 
-**File:** `pocketbase/pb_hooks/reveal.pb.js`
-**Route:** `POST /api/custom/reveal` (internal — not public)
-**Called by:** `server/src/services/revealService.js` via `pb.send()` using the Admin SDK
+**File:** `pocketbase/pb_hooks/reveal.pb.js`  
+**Route:** `POST /api/custom/reveal` (internal — not public, protected by `$apis.requireSuperuserAuth()`)  
+**Called by:** `server/src/services/revealService.js` via `pb.send()` using the Admin SDK  
 
-### Mandatory Implementation Rules (Binding — from D-013)
+### Mandatory Implementation Rules (Binding — from D-013 & D-017)
 
 1. **All DB operations use `txApp`** — every read and write inside the hook callback uses the transaction-scoped `txApp`, never the outer `$app`. This ensures rollback covers all operations.
-2. **Customer identity from auth context only** — the hook reads `e.requestInfo().auth.id` to identify the customer. The `customerId` is **never** accepted from the request body. Express passes only the `listingId`; customer identity is resolved from the authenticated PocketBase session server-side.
+2. **Customer identity through Trusted Express Delegation (D-017)** — the browser client never calls PocketBase directly and never provides a trusted customer identity. Express validates the customer's session cookie via `authenticate.js` and enforces `authorize('customer')`. Express derives the identity strictly from `req.user.id` and passes it in the internal request payload (`customerId`) to PocketBase over its superuser-authenticated connection. Inside the transaction, PocketBase independently validates that the user exists in `users`, has `role === 'customer'`, and is `is_active === true`.
 3. **Existing reveal → zero credit deduction** — if `revealed_contacts` already has a record for this `(customer, listing)` pair, the hook returns the phone number immediately with no changes to any other collection.
 4. **Atomic deduction** — `credits_used + 1` on `user_subscriptions` and the new `revealed_contacts` record are created in the same transaction. If either fails, both roll back. No partial state is ever committed.
 5. **Unique index as secondary backstop** — the unique constraint on `(customer, listing)` in `revealed_contacts` is enforced at the database level independent of the transaction, catching any edge case the transaction logic does not.
+
+### Security Architecture & Trust Chain
+
+The architecture strictly distinguishes between **transport-level route protection** and **application-level identity resolution**:
+
+```
+Browser session cookie (pb_auth)
+      │
+      ▼
+Express authentication middleware (authRefresh verification)
+      │
+      ▼
+Express role authorization (authorize('customer'))
+      │
+      ▼
+Verified customer identity (req.user.id — client overrides rejected)
+      │
+      ▼
+Superuser-authenticated internal PocketBase request (getAdminClient() / $apis.requireSuperuserAuth())
+      │
+      ▼
+txApp customer validation (existence, role === 'customer', is_active === true)
+```
+
+- **PocketBase Superuser Authentication (`$apis.requireSuperuserAuth()`):** Protects the internal `/api/custom/reveal` endpoint so that only the Express backend (holding server-side superuser credentials) can invoke it. In this route context, `e.requestInfo().auth.id` represents the PocketBase superuser and is never used as the customer identity.
+- **Delegated Customer Identity (`customerId`):** Express obtains the customer identity from the verified browser session and delegates it in the trusted internal payload. PocketBase validates the record inside the SQLite transaction using `txApp` before executing any business logic.
 
 ### Approved Reveal Flow
 
@@ -382,24 +408,29 @@ POST /api/v1/reveal/:listingId        (Express — public endpoint)
   │
   ├─ 1. Load listing by ID → must exist and status = "approved", else 404
   │
-  ├─ 2. Call pb.send('POST /api/custom/reveal', { listingId })
+  ├─ 2. Call pb.send('POST /api/custom/reveal', { customerId: req.user.id, listingId })
   │      using Admin SDK (superuser token) — internal call to pb_hooks route
   │
   │      Inside pb_hooks reveal.pb.js:
   │      $app.runInTransaction((txApp) => {
   │
-  │        a. customerId = e.requestInfo().auth.id  ← from auth context, NOT body
+  │        a. Validate delegated customerId:
+  │           - Require body.customerId (reject missing or non-string with 400)
+  │           - customer = txApp.findRecordById('users', customerId)
+  │           - Validate customer.role === 'customer' and customer.is_active === true
   │
-  │        b. existingReveal = txApp.findFirstRecord(
+  │        b. existingReveal = txApp.findFirstRecordByFilter(
   │             'revealed_contacts',
-  │             { filter: 'customer=:c && listing=:l', c, l }
+  │             'customer = {:c} && listing = {:l}',
+  │             { c: customerId, l: listingId }
   │           )
   │           └─ FOUND → return { phone, alreadyRevealed: true }
   │               (transaction commits with zero changes)
   │
-  │        c. subscription = txApp.findFirstRecord(
+  │        c. subscription = txApp.findFirstRecordByFilter(
   │             'user_subscriptions',
-  │             { filter: 'user=:u && status="active"', u: customerId }
+  │             'user = {:u} && status = "active"',
+  │             { u: customerId }
   │           )
   │           credits_remaining = subscription.credits_total - subscription.credits_used
   │           └─ credits_remaining ≤ 0 → throw Error('INSUFFICIENT_CREDITS')
@@ -408,13 +439,13 @@ POST /api/v1/reveal/:listingId        (Express — public endpoint)
   │        d. subscription.set('credits_used', credits_used + 1)
   │           txApp.save(subscription)   ← uses txApp, not $app
   │
-  │        e. revealRecord = new Record(txApp.findCachedCollectionByNameOrId('revealed_contacts'))
+  │        e. revealRecord = new Record(txApp.findCollectionByNameOrId('revealed_contacts'))
   │           revealRecord.set('customer', customerId)
   │           revealRecord.set('listing', listingId)
   │           revealRecord.set('owner', listing.owner)
   │           txApp.save(revealRecord)   ← uses txApp; unique index enforced here
   │
-  │        f. phone = txApp.findFirstRecord('owner_contacts', { filter: 'owner=:o', o: listing.owner }).phone
+  │        f. phone = txApp.findFirstRecordByFilter('owner_contacts', 'owner = {:o}', { o: listing.owner }).phone
   │
   │        return { phone, alreadyRevealed: false }
   │      })  ← commit or rollback
@@ -564,14 +595,14 @@ PocketBase collection-level access rules act as a **second defense layer**. Even
 
 | Collection | List | View | Create | Update | Delete |
 |------------|------|------|--------|--------|--------|
-| `users` | deny all | `id = @request.auth.id` (own) | public (registration) | Admin SDK only | deny all |
-| `owner_contacts` | deny all | deny all | deny all | deny all | deny all |
-| `listings` | `status = "approved"` or `owner = @request.auth.id` | same | Admin SDK only | Admin SDK only | Admin SDK only |
-| `listing_images` | via approved listing | via approved listing | Admin SDK only | Admin SDK only | Admin SDK only |
-| `subscription_plans` | public (active only) | public | Admin SDK only | Admin SDK only | Admin SDK only |
-| `user_subscriptions` | deny all | deny all | Admin SDK only | Admin SDK only (txApp) | Admin SDK only |
-| `revealed_contacts` | `customer = @request.auth.id` | `customer = @request.auth.id` | deny all (txApp only) | deny all | deny all |
-| `saved_listings` | `customer = @request.auth.id` | `customer = @request.auth.id` | Admin SDK | deny all | Admin SDK |
+| `users` | locked (`null`) | `id = @request.auth.id` (own) | locked (`null` - Admin SDK) | locked (`null` - Admin SDK) | locked (`null`) |
+| `owner_contacts` | locked (`null`) | locked (`null`) | locked (`null`) | locked (`null`) | locked (`null`) |
+| `listings` | `status = "approved" \|\| owner = @request.auth.id` | `status = "approved" \|\| owner = @request.auth.id` | locked (`null`) | locked (`null`) | locked (`null`) |
+| `listing_images` | `listing.status = "approved" \|\| listing.owner = @request.auth.id` | `listing.status = "approved" \|\| listing.owner = @request.auth.id` | locked (`null`) | locked (`null`) | locked (`null`) |
+| `subscription_plans` | `is_active = true` | `is_active = true` | locked (`null`) | locked (`null`) | locked (`null`) |
+| `user_subscriptions` | locked (`null`) | locked (`null`) | locked (`null`) | locked (`null` - txApp) | locked (`null`) |
+| `revealed_contacts` | `customer = @request.auth.id` | `customer = @request.auth.id` | locked (`null` - txApp) | locked (`null`) | locked (`null`) |
+| `saved_listings` | `customer = @request.auth.id` | `customer = @request.auth.id` | locked (`null` - Admin SDK) | locked (`null`) | locked (`null` - Admin SDK) |
 | `payments` | deny all | deny all | Admin SDK only | Admin SDK only | Admin SDK only |
 | `notifications` | `user = @request.auth.id` | `user = @request.auth.id` | Admin SDK only | Admin SDK (mark read) | Admin SDK only |
 
@@ -596,9 +627,10 @@ PocketBase collection-level access rules act as a **second defense layer**. Even
 
 #### PocketBase Superuser Credentials
 
-- Used only in `server/src/config/pocketbase.js` via `pb.admins.authWithPassword()`.
+- Used only in `server/src/config/pocketbase.js` via `pb.collection('_superusers').authWithPassword()`.
 - Stored in `server/.env` only. Never committed. Never sent to any client.
 - The superuser session is re-authenticated on expiry; the token is never sent to the browser.
+- Exclusively dedicated to privileged server-to-server operations. Request-scoped user authentication (Task 3.4) uses separate, per-request PocketBase instances.
 
 #### API Response Sanitization
 

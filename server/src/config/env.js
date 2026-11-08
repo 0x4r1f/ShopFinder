@@ -45,7 +45,34 @@ export const envSchema = z.object({
     )
     .refine((val) => val !== '*', {
       message: 'CLIENT_URL cannot be a wildcard (*) when cookie credentials are enabled'
-    })
+    }),
+
+  POCKETBASE_URL: z
+    .string({ message: 'POCKETBASE_URL is required' })
+    .trim()
+    .min(1, { message: 'POCKETBASE_URL cannot be empty' })
+    .url({ message: 'POCKETBASE_URL must be a valid URL (e.g. http://127.0.0.1:8090)' })
+    .refine(
+      (val) => {
+        try {
+          const parsed = new URL(val);
+          return parsed.protocol === 'http:' || parsed.protocol === 'https:';
+        } catch {
+          return false;
+        }
+      },
+      { message: 'POCKETBASE_URL must use http or https protocol' }
+    ),
+
+  POCKETBASE_ADMIN_EMAIL: z
+    .string({ message: 'POCKETBASE_ADMIN_EMAIL is required' })
+    .trim()
+    .min(1, { message: 'POCKETBASE_ADMIN_EMAIL cannot be empty' })
+    .email({ message: 'POCKETBASE_ADMIN_EMAIL must be a valid email address' }),
+
+  POCKETBASE_ADMIN_PASSWORD: z
+    .string({ message: 'POCKETBASE_ADMIN_PASSWORD is required' })
+    .min(1, { message: 'POCKETBASE_ADMIN_PASSWORD cannot be empty' })
 });
 
 /**

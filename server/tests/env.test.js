@@ -14,7 +14,10 @@ describe('Environment Configuration & Validation (Task 1.3)', () => {
   const validBase = {
     NODE_ENV: 'development',
     PORT: '4000',
-    CLIENT_URL: 'http://localhost:5173'
+    CLIENT_URL: 'http://localhost:5173',
+    POCKETBASE_URL: 'http://127.0.0.1:8090',
+    POCKETBASE_ADMIN_EMAIL: 'admin@shopfinder.local',
+    POCKETBASE_ADMIN_PASSWORD: 'mock-admin-password'
   };
 
   test('Valid development configuration parses cleanly and types correctly', () => {
@@ -22,6 +25,9 @@ describe('Environment Configuration & Validation (Task 1.3)', () => {
     assert.equal(config.NODE_ENV, 'development');
     assert.equal(config.PORT, 4000);
     assert.equal(config.CLIENT_URL, 'http://localhost:5173');
+    assert.equal(config.POCKETBASE_URL, 'http://127.0.0.1:8090');
+    assert.equal(config.POCKETBASE_ADMIN_EMAIL, 'admin@shopfinder.local');
+    assert.equal(config.POCKETBASE_ADMIN_PASSWORD, 'mock-admin-password');
     assert.equal(config.isDevelopment, true);
     assert.equal(config.isProduction, false);
     assert.equal(config.isTest, false);
@@ -102,12 +108,97 @@ describe('Environment Configuration & Validation (Task 1.3)', () => {
 
   test('Default PORT is applied when omitted', () => {
     const input = {
+      ...validBase,
       NODE_ENV: 'production',
       CLIENT_URL: 'https://shopfinder.com'
     };
+    delete input.PORT;
     const config = validateEnv(input);
     assert.equal(config.PORT, 4000);
     assert.equal(config.isProduction, true);
+  });
+
+  test('Missing POCKETBASE_URL triggers validation error', () => {
+    const input = { ...validBase };
+    delete input.POCKETBASE_URL;
+    assert.throws(
+      () => validateEnv(input),
+      (err) => {
+        assert.ok(err instanceof Error);
+        assert.ok(err.message.includes('POCKETBASE_URL'));
+        return true;
+      }
+    );
+  });
+
+  test('Malformed POCKETBASE_URL triggers validation error', () => {
+    assert.throws(
+      () => validateEnv({ ...validBase, POCKETBASE_URL: 'not-a-valid-url' }),
+      (err) => {
+        assert.ok(err instanceof Error);
+        assert.ok(err.message.includes('POCKETBASE_URL'));
+        return true;
+      }
+    );
+  });
+
+  test('POCKETBASE_URL with unsupported protocol triggers validation error', () => {
+    assert.throws(
+      () => validateEnv({ ...validBase, POCKETBASE_URL: 'ftp://localhost:8090' }),
+      (err) => {
+        assert.ok(err instanceof Error);
+        assert.ok(err.message.includes('protocol'));
+        return true;
+      }
+    );
+  });
+
+  test('Missing POCKETBASE_ADMIN_EMAIL triggers validation error', () => {
+    const input = { ...validBase };
+    delete input.POCKETBASE_ADMIN_EMAIL;
+    assert.throws(
+      () => validateEnv(input),
+      (err) => {
+        assert.ok(err instanceof Error);
+        assert.ok(err.message.includes('POCKETBASE_ADMIN_EMAIL'));
+        return true;
+      }
+    );
+  });
+
+  test('Invalid POCKETBASE_ADMIN_EMAIL triggers validation error', () => {
+    assert.throws(
+      () => validateEnv({ ...validBase, POCKETBASE_ADMIN_EMAIL: 'not-an-email' }),
+      (err) => {
+        assert.ok(err instanceof Error);
+        assert.ok(err.message.includes('POCKETBASE_ADMIN_EMAIL'));
+        return true;
+      }
+    );
+  });
+
+  test('Missing POCKETBASE_ADMIN_PASSWORD triggers validation error', () => {
+    const input = { ...validBase };
+    delete input.POCKETBASE_ADMIN_PASSWORD;
+    assert.throws(
+      () => validateEnv(input),
+      (err) => {
+        assert.ok(err instanceof Error);
+        assert.ok(err.message.includes('POCKETBASE_ADMIN_PASSWORD'));
+        return true;
+      }
+    );
+  });
+
+  test('Empty POCKETBASE_ADMIN_PASSWORD triggers validation error', () => {
+    assert.throws(
+      () => validateEnv({ ...validBase, POCKETBASE_ADMIN_PASSWORD: '' }),
+      (err) => {
+        assert.ok(err instanceof Error);
+        assert.ok(err.message.includes('POCKETBASE_ADMIN_PASSWORD'));
+        return true;
+      }
+    );
   });
 
   test('dotenv loads server/.env correctly even when process is started from project root', async () => {

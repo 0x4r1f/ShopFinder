@@ -13,7 +13,7 @@
 - FR-010: Owners can create a listing with title, description, category, type, price, area, address, images.
 - FR-011: New listings default to `pending` status.
 - FR-012: Only `approved` listings are visible publicly.
-- FR-013: Owners can edit their own listings (reverts to `pending` on major edit — TBD).
+- FR-013: Owners can edit their own listings and images. Any permitted core-field edit or successful image modification on an approved listing automatically reverts its status to pending according to the approved D-002 re-approval policy. Pending, rejected, and archived listings preserve their existing status as specified by D-002.
 - FR-014: Admin can approve, reject (with note), or archive listings.
 - FR-015: Owners cannot approve their own listings.
 
@@ -37,6 +37,8 @@
 - FR-042: Customers can purchase a plan.
 - FR-043: On payment success, credits are added to customer account.
 - FR-044: Payment status is verified server-side, never trusted from frontend alone.
+- FR-045: Plans are one-time credit packages with no recurring monthly billing (D-001).
+- FR-046: Purchased credits never expire (`expires_at = null`) and multiple package purchases aggregate (D-001).
 
 ### Favorites
 - FR-050: Customers can save a listing.
