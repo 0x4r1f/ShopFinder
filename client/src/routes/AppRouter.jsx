@@ -24,6 +24,11 @@ import AdminListingReviewPage from '../pages/AdminListingReviewPage.jsx';
 import AdminUsersPage from '../pages/AdminUsersPage.jsx';
 import PricingPage from '../pages/PricingPage.jsx';
 import NotificationsPage from '../pages/NotificationsPage.jsx';
+import AboutPage from '../pages/AboutPage.jsx';
+import TermsPage from '../pages/TermsPage.jsx';
+import PrivacyPage from '../pages/PrivacyPage.jsx';
+import ContactPage from '../pages/ContactPage.jsx';
+import FaqPage from '../pages/FaqPage.jsx';
 import NotFoundPage from '../pages/NotFoundPage.jsx';
 
 /**
@@ -62,6 +67,11 @@ export default function AppRouter() {
             </ProtectedRoute>
           }
         />
+        <Route path="/about" element={<AboutPage />} />
+        <Route path="/terms" element={<TermsPage />} />
+        <Route path="/privacy" element={<PrivacyPage />} />
+        <Route path="/contact" element={<ContactPage />} />
+        <Route path="/faq" element={<FaqPage />} />
         <Route path="/listings" element={<Navigate to="/marketplace" replace />} />
         <Route path="/listings/:id" element={<ListingDetailPage />} />
       </Route>
