@@ -104,8 +104,12 @@ export function getTrustedCustomerId(req) {
 export async function delegateRevealTransaction({
   customerId,
   listingId,
+  verifyOnly = false,
   testRollback = false,
   testRecordId = null,
+  simulateCreditUpdateFailure = false,
+  simulateRevealSaveFailure = false,
+  bypassIdempotencyCheck = false,
 } = {}) {
   if (!customerId || typeof customerId !== 'string' || customerId.trim() === '') {
     const err = new Error('customerId is required and must be a non-empty string.');
@@ -119,7 +123,11 @@ export async function delegateRevealTransaction({
   const payload = {
     customerId: cleanCustomerId,
     ...(listingId ? { listingId: String(listingId).trim() } : {}),
+    ...(verifyOnly ? { verifyOnly: true } : {}),
     ...(testRollback ? { testRollback: true, ...(testRecordId ? { testRecordId } : {}) } : {}),
+    ...(simulateCreditUpdateFailure ? { simulateCreditUpdateFailure: true } : {}),
+    ...(simulateRevealSaveFailure ? { simulateRevealSaveFailure: true } : {}),
+    ...(bypassIdempotencyCheck ? { bypassIdempotencyCheck: true } : {}),
   };
 
   try {

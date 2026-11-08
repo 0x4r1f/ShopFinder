@@ -389,7 +389,7 @@ describe('Phase 10, Task 10.2 — Trusted Express Identity Delegation and Pocket
       assert.strictEqual(res.status, 200);
       const json = await res.json();
       assert.strictEqual(json.success, true);
-      assert.ok(json.data.task === '10.2' || json.data.task === '10.3' || json.data.task === '10.4');
+      assert.ok(json.data.task === '10.2' || json.data.task === '10.3' || json.data.task === '10.4' || json.data.task === '10.5');
       assert.strictEqual(json.data.customerId, testCustomer.id);
       assert.strictEqual(json.data.customerEmail, testCustomer.email);
       assert.strictEqual(json.data.transactionCommitted, true);

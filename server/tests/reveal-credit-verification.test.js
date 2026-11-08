@@ -282,6 +282,7 @@ describe('Phase 10, Task 10.4 — Verify Active Subscription and Available Credi
       const res = await delegateRevealTransaction({
         customerId: customerSinglePackage.id,
         listingId: testListing1.id,
+        verifyOnly: true,
       });
 
       assert.strictEqual(res.success, true);
@@ -296,6 +297,7 @@ describe('Phase 10, Task 10.4 — Verify Active Subscription and Available Credi
       const res = await delegateRevealTransaction({
         customerId: customerMultiPackage.id,
         listingId: testListing1.id,
+        verifyOnly: true,
       });
 
       assert.strictEqual(res.success, true);
@@ -454,17 +456,20 @@ describe('Phase 10, Task 10.4 — Verify Active Subscription and Available Credi
       );
       assert.strictEqual(subBefore.credits_used, 2);
 
-      // Call verification multiple times
-      await delegateRevealTransaction({ customerId: customerSinglePackage.id, listingId: testListing1.id });
-      await delegateRevealTransaction({ customerId: customerSinglePackage.id, listingId: testListing1.id });
+      // Call verification multiple times with verifyOnly: true
+      await delegateRevealTransaction({ customerId: customerSinglePackage.id, listingId: testListing1.id, verifyOnly: true });
+      await delegateRevealTransaction({ customerId: customerSinglePackage.id, listingId: testListing1.id, verifyOnly: true });
 
       const subAfter = await adminPb.collection('user_subscriptions').getFirstListItem(
         `user = "${customerSinglePackage.id}"`
       );
-      assert.strictEqual(subAfter.credits_used, 2, 'credits_used must NOT be modified in Task 10.4');
+      assert.strictEqual(subAfter.credits_used, 2, 'credits_used must NOT be modified during credit verification');
     });
 
     test('11. No reveal record is created during verification', async () => {
+      // Call verification with verifyOnly: true
+      await delegateRevealTransaction({ customerId: customerSinglePackage.id, listingId: testListing1.id, verifyOnly: true });
+
       // Query revealed_contacts for Customer 1 and Listing 1
       const reveals = await adminPb.collection('revealed_contacts').getFullList({
         filter: adminPb.filter('customer = {:c} && listing = {:l}', {
@@ -473,7 +478,7 @@ describe('Phase 10, Task 10.4 — Verify Active Subscription and Available Credi
         }),
       });
 
-      assert.strictEqual(reveals.length, 0, 'ZERO reveal records must be created in Task 10.4');
+      assert.strictEqual(reveals.length, 0, 'ZERO reveal records must be created during credit verification');
     });
   });
 

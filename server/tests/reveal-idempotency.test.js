@@ -210,6 +210,7 @@ describe('Phase 10, Task 10.3 — Idempotent Previous-Reveal Check (D-013 & D-01
       const res = await delegateRevealTransaction({
         customerId: testCustomerB.id,
         listingId: testListing1.id,
+        verifyOnly: true,
       });
 
       assert.strictEqual(res.success, true);
@@ -222,6 +223,7 @@ describe('Phase 10, Task 10.3 — Idempotent Previous-Reveal Check (D-013 & D-01
       const res = await delegateRevealTransaction({
         customerId: testCustomerA.id,
         listingId: testListing2.id,
+        verifyOnly: true,
       });
 
       assert.strictEqual(res.success, true);
