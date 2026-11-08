@@ -5,6 +5,7 @@ import Spinner from '../components/common/Spinner.jsx';
 import NotificationBanner from '../components/common/NotificationBanner.jsx';
 import EmptyState from '../components/common/EmptyState.jsx';
 import UserStatusModal from '../components/admin/UserStatusModal.jsx';
+import { TableSkeleton } from '../components/common/Skeletons.jsx';
 import {
   UserIcon,
   SearchIcon,
@@ -282,11 +283,29 @@ export default function AdminUsersPage({ initialData = null }) {
 
       {/* Main Content: Loading, Empty, or Table */}
       {loading && !users ? (
-        <div className="py-20 flex flex-col items-center justify-center text-center">
-          <Spinner size="lg" />
-          <p className="mt-4 text-sm text-muted-foreground animate-pulse">
+        <div
+          role="status"
+          className="bg-card text-card-foreground rounded-xl border border-border shadow-xs overflow-hidden"
+          aria-live="polite"
+        >
+          <span className="sr-only">
             Loading platform users from database...
-          </p>
+          </span>
+          <div className="overflow-x-auto scrollbar-thin">
+            <table className="w-full text-left text-sm" aria-label="Loading users...">
+              <thead className="bg-muted/50 text-muted-foreground border-b border-border text-xs uppercase tracking-wider font-semibold">
+                <tr>
+                  <th scope="col" className="py-3.5 px-4">User</th>
+                  <th scope="col" className="py-3.5 px-4">Email Address</th>
+                  <th scope="col" className="py-3.5 px-4">Role</th>
+                  <th scope="col" className="py-3.5 px-4">Account Status</th>
+                  <th scope="col" className="py-3.5 px-4">Registered Date</th>
+                  <th scope="col" className="py-3.5 px-4 text-right">Action</th>
+                </tr>
+              </thead>
+              <TableSkeleton rows={6} columns={6} />
+            </table>
+          </div>
         </div>
       ) : users && users.length === 0 ? (
         <EmptyState
@@ -399,7 +418,7 @@ export default function AdminUsersPage({ initialData = null }) {
                           variant={isActive ? 'outline' : 'default'}
                           size="sm"
                           onClick={() => setSelectedUserForModal(u)}
-                          className={`h-7 px-2.5 text-xs font-medium ${
+                          className={`h-7 px-2.5 text-xs font-medium active:scale-95 transition-all ${
                             isActive
                               ? 'text-destructive hover:bg-destructive/10 border-destructive/30'
                               : 'bg-emerald-600 hover:bg-emerald-700 text-white'
@@ -472,7 +491,7 @@ export default function AdminUsersPage({ initialData = null }) {
                       variant={isActive ? 'outline' : 'default'}
                       size="sm"
                       onClick={() => setSelectedUserForModal(u)}
-                      className={`w-full h-8 text-xs font-medium ${
+                      className={`w-full h-8 text-xs font-medium active:scale-95 transition-all ${
                         isActive
                           ? 'text-destructive hover:bg-destructive/10 border-destructive/30'
                           : 'bg-emerald-600 hover:bg-emerald-700 text-white'

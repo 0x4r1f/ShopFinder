@@ -6,6 +6,7 @@ import OwnerInfoCard from '../components/marketplace/OwnerInfoCard.jsx';
 import Spinner from '../components/common/Spinner.jsx';
 import NotificationBanner from '../components/common/NotificationBanner.jsx';
 import EmptyState from '../components/common/EmptyState.jsx';
+import { ListingDetailSkeleton } from '../components/common/Skeletons.jsx';
 import { Button } from '../components/ui/button.jsx';
 import {
   MapPinIcon,
@@ -129,18 +130,16 @@ export default function ListingDetailPage() {
     };
   }, [id]);
 
-  // Loading State
+  // Loading State: Content-shaped Structured Skeleton
   if (loading) {
     return (
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
-        <div className="flex items-center gap-2 mb-6 text-xs font-mono text-muted-foreground">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
+        <div className="flex items-center gap-2 mb-4 text-xs font-mono text-muted-foreground">
           <span>Listing ID: {id}</span>
           <span className="sr-only">Task 5.5 Commercial Details</span>
+          <span className="sr-only">Loading commercial property details...</span>
         </div>
-        <div className="py-24 flex flex-col items-center justify-center">
-          <Spinner size="lg" className="text-primary mb-4" />
-          <p className="text-sm font-medium text-muted-foreground">Loading commercial property details...</p>
-        </div>
+        <ListingDetailSkeleton />
       </div>
     );
   }

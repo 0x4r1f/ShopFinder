@@ -71,42 +71,42 @@ export default function Header() {
             to="/"
             end
             className={({ isActive }) =>
-              `flex items-center gap-2 px-3 py-2 rounded-md text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring ${
+              `flex items-center gap-1.5 lg:gap-2 px-2.5 lg:px-3 py-1.5 lg:py-2 rounded-md text-xs lg:text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring ${
                 isActive
                   ? 'bg-accent text-accent-foreground font-semibold'
                   : 'text-muted-foreground hover:text-foreground hover:bg-accent/50'
               }`
             }
           >
-            <HomeIcon className="w-4 h-4" />
+            <HomeIcon className="w-4 h-4 shrink-0" />
             <span>Home</span>
           </NavLink>
 
           <NavLink
             to="/marketplace"
             className={({ isActive }) =>
-              `flex items-center gap-2 px-3 py-2 rounded-md text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring ${
+              `flex items-center gap-1.5 lg:gap-2 px-2.5 lg:px-3 py-1.5 lg:py-2 rounded-md text-xs lg:text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring ${
                 isActive
                   ? 'bg-accent/70 text-accent-foreground font-semibold'
                   : 'text-muted-foreground hover:text-foreground hover:bg-accent/50'
               }`
             }
           >
-            <StoreIcon className="w-4 h-4" />
+            <StoreIcon className="w-4 h-4 shrink-0" />
             <span>Marketplace</span>
           </NavLink>
 
           <NavLink
             to="/pricing"
             className={({ isActive }) =>
-              `flex items-center gap-2 px-3 py-2 rounded-md text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring ${
+              `flex items-center gap-1.5 lg:gap-2 px-2.5 lg:px-3 py-1.5 lg:py-2 rounded-md text-xs lg:text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring ${
                 isActive
                   ? 'bg-accent/70 text-accent-foreground font-semibold'
                   : 'text-muted-foreground hover:text-foreground hover:bg-accent/50'
               }`
             }
           >
-            <SparklesIcon className="w-4 h-4" />
+            <SparklesIcon className="w-4 h-4 shrink-0" />
             <span>Pricing</span>
           </NavLink>
 
@@ -115,14 +115,14 @@ export default function Header() {
             <NavLink
               to="/dashboard"
               className={({ isActive }) =>
-                `flex items-center gap-2 px-3 py-2 rounded-md text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring ${
+                `flex items-center gap-1.5 lg:gap-2 px-2.5 lg:px-3 py-1.5 lg:py-2 rounded-md text-xs lg:text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring ${
                   isActive
                     ? 'bg-primary text-primary-foreground font-semibold shadow-sm'
                     : 'text-muted-foreground hover:text-foreground hover:bg-accent/50'
                 }`
               }
             >
-              <DashboardIcon className="w-4 h-4" />
+              <DashboardIcon className="w-4 h-4 shrink-0" />
               <span>Customer Dashboard</span>
             </NavLink>
           )}
@@ -131,23 +131,23 @@ export default function Header() {
             <NavLink
               to={user?.role === 'admin' ? '/admin-dashboard' : '/owner-dashboard'}
               className={({ isActive }) =>
-                `flex items-center gap-2 px-3 py-2 rounded-md text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring ${
+                `flex items-center gap-1.5 lg:gap-2 px-2.5 lg:px-3 py-1.5 lg:py-2 rounded-md text-xs lg:text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring ${
                   isActive
                     ? 'bg-primary text-primary-foreground font-semibold shadow-sm'
                     : 'text-muted-foreground hover:text-foreground hover:bg-accent/50'
                 }`
               }
             >
-              <DashboardIcon className="w-4 h-4" />
+              <DashboardIcon className="w-4 h-4 shrink-0" />
               <span>{user?.role === 'admin' ? 'Admin Portal' : 'Owner Portal'}</span>
             </NavLink>
           )}
         </nav>
 
         {/* Desktop Auth Controls / User Identity */}
-        <div className="hidden md:flex items-center gap-3">
+        <div className="hidden md:flex items-center gap-1.5 lg:gap-3">
           {isAuthenticated && user ? (
-            <div className="flex items-center gap-3 pl-2 border-l border-border">
+            <div className="flex items-center gap-2 lg:gap-3 pl-2 border-l border-border">
               {/* Customer Credit Balance Indicator */}
               <CreditBadge variant="header" />
 
@@ -155,20 +155,20 @@ export default function Header() {
               <NotificationBell />
 
               {/* User Identity Chip */}
-              <div className="flex items-center gap-2.5">
-                <div className="w-8 h-8 rounded-full bg-primary/10 text-primary flex items-center justify-center font-semibold text-xs border border-primary/20">
-                  {user.name ? user.name.charAt(0).toUpperCase() : <UserIcon className="w-4 h-4" />}
+              <div className="flex items-center gap-2">
+                <div className="w-7 h-7 lg:w-8 lg:h-8 rounded-full bg-primary/10 text-primary flex items-center justify-center font-semibold text-xs border border-primary/20 shrink-0">
+                  {user.name ? user.name.charAt(0).toUpperCase() : <UserIcon className="w-3.5 h-3.5 lg:w-4 lg:h-4" />}
                 </div>
                 <div className="text-left">
                   <div className="flex items-center gap-1.5">
-                    <span className="text-xs font-semibold text-foreground max-w-[120px] truncate">
+                    <span className="text-xs font-semibold text-foreground max-w-[80px] sm:max-w-[100px] lg:max-w-[130px] truncate">
                       {user.name}
                     </span>
                     <span className="text-[10px] font-medium bg-primary/10 text-primary px-1.5 py-0.2 rounded-full uppercase tracking-wider">
                       {roleLabel}
                     </span>
                   </div>
-                  <span className="text-[11px] text-muted-foreground block max-w-[140px] truncate">
+                  <span className="text-[11px] text-muted-foreground hidden lg:block max-w-[140px] truncate">
                     {user.email}
                   </span>
                 </div>
@@ -182,10 +182,10 @@ export default function Header() {
                 onClick={handleLogout}
                 disabled={isLoggingOut}
                 aria-label="Log out of your account"
-                className="text-muted-foreground hover:text-destructive hover:bg-destructive/10"
+                className="text-muted-foreground hover:text-destructive hover:bg-destructive/10 px-2 lg:px-3 h-8 text-xs active:scale-95 transition-all"
               >
-                <LogoutIcon className="w-4 h-4 mr-1.5" />
-                <span>{isLoggingOut ? 'Logging out...' : 'Log Out'}</span>
+                <LogoutIcon className="w-3.5 h-3.5 lg:w-4 lg:h-4 mr-1 lg:mr-1.5 shrink-0" />
+                <span className="hidden sm:inline">{isLoggingOut ? 'Logging out...' : 'Log Out'}</span>
               </Button>
             </div>
           ) : (

@@ -14,6 +14,7 @@ import {
   ShieldCheckIcon,
   BookmarkIcon,
   EyeIcon,
+  PlusIcon,
 } from '../common/Icons.jsx';
 
 /**
@@ -62,10 +63,7 @@ export default function Sidebar() {
   const ownerNav = {
     overviewRoute: '/owner-dashboard',
     overviewLabel: 'Owner Portal Overview',
-    upcomingItems: [
-      'My Listings',
-      'Add New Listing',
-    ],
+    upcomingItems: [],
   };
 
   const adminNav = {
@@ -177,6 +175,24 @@ export default function Sidebar() {
             </NavLink>
           )}
 
+          {/* Active Owner Add Listing Route (Task 6.6) */}
+          {role === 'owner' && (
+            <NavLink
+              to="/owner-dashboard/listings/new"
+              onClick={() => setIsMobileOpen(false)}
+              className={({ isActive }) =>
+                `flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring ${
+                  isActive
+                    ? 'bg-primary text-primary-foreground font-semibold shadow-sm'
+                    : 'text-foreground hover:bg-accent hover:text-accent-foreground'
+                }`
+              }
+            >
+              <PlusIcon className="w-4 h-4" />
+              <span>Add New Listing</span>
+            </NavLink>
+          )}
+
           {/* Active Owner Profile Route (Task 6.7) */}
           {role === 'owner' && (
             <NavLink
@@ -232,27 +248,31 @@ export default function Sidebar() {
           )}
 
           {/* Upcoming Items (Visibly marked, Non-clickable) */}
-          <div className="pt-2 pb-1 px-3">
-            <span className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider">
-              Modules
-            </span>
-          </div>
-
-          {currentNav.upcomingItems.map((item) => (
-            <div
-              key={item}
-              aria-disabled="true"
-              className="flex items-center justify-between px-3 py-2 rounded-lg text-sm text-muted-foreground/75 cursor-not-allowed select-none bg-accent/20"
-            >
-              <div className="flex items-center gap-2.5">
-                <ClockIcon className="w-4 h-4 text-muted-foreground/60" />
-                <span className="truncate">{item}</span>
+          {currentNav.upcomingItems && currentNav.upcomingItems.length > 0 && (
+            <>
+              <div className="pt-2 pb-1 px-3">
+                <span className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider">
+                  Modules
+                </span>
               </div>
-              <span className="text-[10px] font-medium bg-muted text-muted-foreground px-1.5 py-0.5 rounded border border-border">
-                Upcoming
-              </span>
-            </div>
-          ))}
+
+              {currentNav.upcomingItems.map((item) => (
+                <div
+                  key={item}
+                  aria-disabled="true"
+                  className="flex items-center justify-between px-3 py-2 rounded-lg text-sm text-muted-foreground/75 cursor-not-allowed select-none bg-accent/20"
+                >
+                  <div className="flex items-center gap-2.5">
+                    <ClockIcon className="w-4 h-4 text-muted-foreground/60" />
+                    <span className="truncate">{item}</span>
+                  </div>
+                  <span className="text-[10px] font-medium bg-muted text-muted-foreground px-1.5 py-0.5 rounded border border-border">
+                    Upcoming
+                  </span>
+                </div>
+              ))}
+            </>
+          )}
 
           {/* Back to Marketplace Link */}
           <div className="pt-4 border-t border-border mt-4">
@@ -323,7 +343,7 @@ export default function Sidebar() {
       {isMobileOpen && (
         <div
           id="mobile-sidebar-menu"
-          className="md:hidden w-full bg-card border-b border-border p-4 shadow-lg"
+          className="md:hidden w-full bg-card border-b border-border p-4 shadow-lg animate-in slide-in-from-top-2 duration-200 motion-reduce:animate-none"
         >
           {sidebarContent}
         </div>

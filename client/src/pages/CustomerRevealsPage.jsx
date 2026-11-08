@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom';
 import { Button } from '../components/ui/button.jsx';
 import EmptyState from '../components/common/EmptyState.jsx';
 import Spinner from '../components/common/Spinner.jsx';
+import { ListingsGridSkeleton } from '../components/common/Skeletons.jsx';
 import {
   EyeIcon,
   MapPinIcon,
@@ -242,16 +243,13 @@ export default function CustomerRevealsPage({
         </div>
       </section>
 
-      {/* 3. Loading State */}
+      {/* 3. Loading State: Content-shaped Skeletons */}
       {loading && !hasReveals && (
-        <div className="py-16 flex flex-col items-center justify-center space-y-3 text-center" data-testid="reveals-loading">
-          <Spinner size="lg" />
-          <p className="text-sm font-medium text-foreground">
-            Loading your contact reveal history...
-          </p>
-          <p className="text-xs text-muted-foreground">
-            Fetching unlocked commercial property contacts
-          </p>
+        <div className="py-6 space-y-3" data-testid="reveals-loading" aria-live="polite">
+          <span className="sr-only">
+            Loading your contact reveal history... Fetching unlocked commercial property contacts
+          </span>
+          <ListingsGridSkeleton count={6} viewMode="grid" />
         </div>
       )}
 
@@ -429,7 +427,7 @@ export default function CustomerRevealsPage({
                 Showing page <strong className="text-foreground">{pagination.page}</strong> of{' '}
                 <strong className="text-foreground">{pagination.totalPages}</strong> ({pagination.totalItems} total revealed)
               </p>
-              <div className="flex items-center gap-2">
+              <div className="flex items-center gap-2 w-full sm:w-auto justify-between sm:justify-end">
                 <Button
                   type="button"
                   variant="outline"
@@ -437,6 +435,7 @@ export default function CustomerRevealsPage({
                   disabled={pagination.page <= 1 || loading}
                   onClick={() => handlePageChange(pagination.page - 1)}
                   data-testid="pagination-prev"
+                  className="min-h-[42px] sm:min-h-[36px] px-3.5 py-2 active:scale-95 transition-all text-xs"
                 >
                   <ArrowLeftIcon className="w-3.5 h-3.5 mr-1" />
                   Previous
@@ -448,6 +447,7 @@ export default function CustomerRevealsPage({
                   disabled={pagination.page >= pagination.totalPages || loading}
                   onClick={() => handlePageChange(pagination.page + 1)}
                   data-testid="pagination-next"
+                  className="min-h-[42px] sm:min-h-[36px] px-3.5 py-2 active:scale-95 transition-all text-xs"
                 >
                   Next
                   <ArrowRightIcon className="w-3.5 h-3.5 ml-1" />

@@ -10,6 +10,7 @@ import { Button } from '../components/ui/button.jsx';
 import Spinner from '../components/common/Spinner.jsx';
 import EmptyState from '../components/common/EmptyState.jsx';
 import NotificationBanner from '../components/common/NotificationBanner.jsx';
+import { KpiCardSkeleton, TableSkeleton } from '../components/common/Skeletons.jsx';
 import {
   StoreIcon,
   PlusIcon,
@@ -20,6 +21,30 @@ import {
   BuildingIcon,
   EyeIcon,
 } from '../components/common/Icons.jsx';
+
+export const OWNER_DASHBOARD_TABS = ['listings', 'analytics'];
+
+/**
+ * Pure WAI-ARIA tab navigation helper for roving focus across owner dashboard tabs.
+ */
+export function getNextOwnerTab(currentTab, key) {
+  const currentIndex = OWNER_DASHBOARD_TABS.indexOf(currentTab);
+  if (currentIndex === -1) return currentTab;
+
+  if (key === 'ArrowRight') {
+    return OWNER_DASHBOARD_TABS[(currentIndex + 1) % OWNER_DASHBOARD_TABS.length];
+  }
+  if (key === 'ArrowLeft') {
+    return OWNER_DASHBOARD_TABS[(currentIndex - 1 + OWNER_DASHBOARD_TABS.length) % OWNER_DASHBOARD_TABS.length];
+  }
+  if (key === 'Home') {
+    return OWNER_DASHBOARD_TABS[0];
+  }
+  if (key === 'End') {
+    return OWNER_DASHBOARD_TABS[OWNER_DASHBOARD_TABS.length - 1];
+  }
+  return currentTab;
+}
 
 /**
  * ShopFinder — Owner Dashboard Page (Phase 6, Task 6.5)
@@ -52,6 +77,28 @@ export default function OwnerDashboardPage() {
   // Active Tab ('listings' | 'analytics')
   const [activeTab, setActiveTab] = useState(location.state?.tab || 'listings');
   const [selectedListingForAnalytics, setSelectedListingForAnalytics] = useState(location.state?.listingId || null);
+
+  const listingsTabRef = useRef(null);
+  const analyticsTabRef = useRef(null);
+
+  const selectTab = useCallback((tabId, shouldFocus = false) => {
+    setActiveTab(tabId);
+    if (shouldFocus) {
+      if (tabId === 'listings') {
+        listingsTabRef.current?.focus();
+      } else if (tabId === 'analytics') {
+        analyticsTabRef.current?.focus();
+      }
+    }
+  }, []);
+
+  const handleTabKeyDown = (e) => {
+    const targetTab = getNextOwnerTab(activeTab, e.key);
+    if (targetTab !== activeTab) {
+      e.preventDefault();
+      selectTab(targetTab, true);
+    }
+  };
 
   // Success / Info notifications
   const [feedback, setFeedback] = useState(location.state?.feedback || null);
@@ -263,15 +310,22 @@ export default function OwnerDashboardPage() {
       {/* ===================================================================== */}
       {/* 2. Navigation Tabs (Listings vs Performance Analytics)                */}
       {/* ===================================================================== */}
-      <div className="flex items-center gap-6 border-b border-border" role="tablist">
+      <div
+        className="flex items-center gap-6 border-b border-border"
+        role="tablist"
+        aria-label="Owner dashboard views"
+        onKeyDown={handleTabKeyDown}
+      >
         <button
+          ref={listingsTabRef}
           type="button"
           role="tab"
           id="owner-tab-listings"
           aria-selected={activeTab === 'listings'}
+          tabIndex={activeTab === 'listings' ? 0 : -1}
           aria-controls="owner-panel-listings"
-          onClick={() => setActiveTab('listings')}
-          className={`pb-3 text-sm font-semibold transition-colors border-b-2 flex items-center gap-2 ${
+          onClick={() => selectTab('listings')}
+          className={`pb-3 text-sm font-semibold transition-colors border-b-2 flex items-center gap-2 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring rounded-t-sm ${
             activeTab === 'listings'
               ? 'border-primary text-primary'
               : 'border-transparent text-muted-foreground hover:text-foreground'
@@ -285,13 +339,15 @@ export default function OwnerDashboardPage() {
         </button>
 
         <button
+          ref={analyticsTabRef}
           type="button"
           role="tab"
           id="owner-tab-analytics"
           aria-selected={activeTab === 'analytics'}
+          tabIndex={activeTab === 'analytics' ? 0 : -1}
           aria-controls="owner-panel-analytics"
-          onClick={() => setActiveTab('analytics')}
-          className={`pb-3 text-sm font-semibold transition-colors border-b-2 flex items-center gap-2 ${
+          onClick={() => selectTab('analytics')}
+          className={`pb-3 text-sm font-semibold transition-colors border-b-2 flex items-center gap-2 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring rounded-t-sm ${
             activeTab === 'analytics'
               ? 'border-primary text-primary'
               : 'border-transparent text-muted-foreground hover:text-foreground'
@@ -312,13 +368,36 @@ export default function OwnerDashboardPage() {
       ) : (
         <div id="owner-panel-listings" role="tabpanel" aria-labelledby="owner-tab-listings" className="space-y-8">
           {/* Portfolio KPI Summary Cards */}
-          <OwnerSummaryCards
-            totalItems={totalItems}
-            approvedCount={approvedCount}
-            pendingCount={pendingCount}
-            rejectedCount={rejectedCount}
-            isPaginated={isPaginated}
-          />
+          {loading ? (
+            <div className="space-y-2" aria-label="Loading portfolio metrics...">
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+                <div className="relative">
+                  <span className="sr-only">Total Properties</span>
+                  <KpiCardSkeleton aria-label="Loading Total Properties metric..." />
+                </div>
+                <div className="relative">
+                  <span className="sr-only">Approved</span>
+                  <KpiCardSkeleton aria-label="Loading Approved listings metric..." />
+                </div>
+                <div className="relative">
+                  <span className="sr-only">Pending Review</span>
+                  <KpiCardSkeleton aria-label="Loading Pending Review metric..." />
+                </div>
+                <div className="relative">
+                  <span className="sr-only">Action Required</span>
+                  <KpiCardSkeleton aria-label="Loading Action Required metric..." />
+                </div>
+              </div>
+            </div>
+          ) : (
+            <OwnerSummaryCards
+              totalItems={totalItems}
+              approvedCount={approvedCount}
+              pendingCount={pendingCount}
+              rejectedCount={rejectedCount}
+              isPaginated={isPaginated}
+            />
+          )}
 
           {/* My Listings Section (Table / Cards / Sorting / Pagination) */}
           <div className="space-y-4">
@@ -362,14 +441,33 @@ export default function OwnerDashboardPage() {
         </div>
 
         {/* =================================================================== */}
-        {/* State 1: Loading State                                              */}
+        {/* State 1: Loading State with Content-shaped Skeletons               */}
         {/* =================================================================== */}
         {loading && (
-          <div className="py-16 flex flex-col items-center justify-center gap-3 bg-card/40 rounded-xl border border-border">
-            <Spinner size="lg" label="Loading listings..." />
-            <span className="text-sm text-muted-foreground font-medium">
-              Retrieving your commercial listings...
-            </span>
+          <div
+            role="status"
+            className="rounded-xl border border-border bg-card overflow-hidden shadow-xs"
+            data-testid="owner-listings-loading"
+            aria-live="polite"
+          >
+            <span className="sr-only">Loading listings...</span>
+            <span className="sr-only">Retrieving your commercial listings...</span>
+            <div className="overflow-x-auto scrollbar-thin">
+              <table className="w-full text-left text-sm" aria-label="Loading commercial listings...">
+                <thead className="bg-muted/50 text-xs font-semibold uppercase tracking-wider text-muted-foreground border-b border-border">
+                  <tr>
+                    <th scope="col" className="py-3.5 px-4 w-16">Photo</th>
+                    <th scope="col" className="py-3.5 px-4 min-w-[200px]">Property Details</th>
+                    <th scope="col" className="py-3.5 px-4">Type</th>
+                    <th scope="col" className="py-3.5 px-4">Price (BDT)</th>
+                    <th scope="col" className="py-3.5 px-4">Status</th>
+                    <th scope="col" className="py-3.5 px-4">Submitted</th>
+                    <th scope="col" className="py-3.5 px-4 text-right">Actions</th>
+                  </tr>
+                </thead>
+                <TableSkeleton rows={5} columns={7} />
+              </table>
+            </div>
           </div>
         )}
 

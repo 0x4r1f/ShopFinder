@@ -110,10 +110,10 @@ export default function RejectListingModal({
       aria-modal="true"
       aria-labelledby="reject-dialog-title"
       aria-describedby="reject-dialog-desc"
-      className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-xs animate-in fade-in duration-150"
+      className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-xs transition-opacity duration-200 motion-safe:animate-in motion-safe:fade-in-0 motion-reduce:transition-none"
       onClick={handleBackdropClick}
     >
-      <div className="w-full max-w-lg bg-card text-card-foreground rounded-xl shadow-xl border border-border p-6 space-y-5">
+      <div className="w-full max-w-lg bg-card text-card-foreground rounded-xl shadow-xl border border-border p-6 space-y-5 transition-all duration-200 motion-safe:animate-in motion-safe:fade-in-0 motion-safe:zoom-in-95 motion-reduce:transition-none">
         {/* Header */}
         <div className="flex items-start justify-between gap-4">
           <div className="flex items-center gap-3">

@@ -6,6 +6,7 @@ import FilterSidebar from '../components/marketplace/FilterSidebar.jsx';
 import Spinner from '../components/common/Spinner.jsx';
 import EmptyState from '../components/common/EmptyState.jsx';
 import NotificationBanner from '../components/common/NotificationBanner.jsx';
+import { ListingsGridSkeleton } from '../components/common/Skeletons.jsx';
 import {
   GridIcon,
   ListIcon,
@@ -459,7 +460,7 @@ export default function MarketplacePage() {
                     onClick={() => setViewMode('grid')}
                     aria-label="Grid view"
                     aria-pressed={viewMode === 'grid'}
-                    className={`p-1.5 rounded-md transition-colors ${
+                    className={`p-1.5 rounded-md transition-all duration-150 active:scale-95 ${
                       viewMode === 'grid'
                         ? 'bg-primary text-primary-foreground font-semibold shadow-xs'
                         : 'text-muted-foreground hover:text-foreground hover:bg-accent'
@@ -472,7 +473,7 @@ export default function MarketplacePage() {
                     onClick={() => setViewMode('list')}
                     aria-label="List view"
                     aria-pressed={viewMode === 'list'}
-                    className={`p-1.5 rounded-md transition-colors ${
+                    className={`p-1.5 rounded-md transition-all duration-150 active:scale-95 ${
                       viewMode === 'list'
                         ? 'bg-primary text-primary-foreground font-semibold shadow-xs'
                         : 'text-muted-foreground hover:text-foreground hover:bg-accent'
@@ -491,13 +492,13 @@ export default function MarketplacePage() {
                 {activeFilterList.map((item) => (
                   <span
                     key={item.key}
-                    className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium bg-primary/10 text-primary border border-primary/20"
+                    className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium bg-primary/10 text-primary border border-primary/20 hover:bg-primary/15 transition-colors"
                   >
                     <span>{item.label}</span>
                     <button
                       type="button"
                       onClick={() => handleRemoveFilter(item.key)}
-                      className="hover:bg-primary/20 rounded-full p-0.5 transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+                      className="hover:bg-primary/20 rounded-full p-0.5 transition-all focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring active:scale-90"
                       aria-label={`Remove filter ${item.label}`}
                     >
                       <CloseIcon className="w-3 h-3" />
@@ -507,18 +508,18 @@ export default function MarketplacePage() {
                 <button
                   type="button"
                   onClick={handleClearFilters}
-                  className="text-xs text-muted-foreground hover:text-foreground underline underline-offset-4 ml-1 focus-visible:outline-none"
+                  className="text-xs text-muted-foreground hover:text-foreground underline underline-offset-4 ml-1 focus-visible:outline-none transition-colors"
                 >
                   Clear all
                 </button>
               </div>
             )}
 
-            {/* Loading State */}
+            {/* Loading State: Content-shaped Skeletons */}
             {isLoading && (
-              <div className="flex flex-col items-center justify-center py-24 gap-3" aria-live="polite">
-                <Spinner size="lg" label="Loading commercial listings..." />
-                <p className="text-sm text-muted-foreground">Fetching approved commercial properties...</p>
+              <div aria-live="polite" className="py-2">
+                <span className="sr-only">Loading commercial listings... Fetching approved commercial properties...</span>
+                <ListingsGridSkeleton count={perPage || 6} viewMode={viewMode} />
               </div>
             )}
 
@@ -599,18 +600,19 @@ export default function MarketplacePage() {
                 }
                 action={
                   activeFilterList.length > 0 ? (
-                    <div className="flex items-center gap-3">
+                    <div className="flex flex-wrap items-center justify-center gap-3">
                       <Button
                         type="button"
                         variant="default"
                         size="sm"
                         onClick={handleClearFilters}
+                        className="active:scale-[0.98] transition-transform shadow-xs"
                       >
                         Clear All Filters
                       </Button>
                       <Link
                         to="/"
-                        className="inline-flex items-center justify-center px-3 py-1.5 rounded-md text-xs font-medium border border-border bg-card hover:bg-accent text-foreground transition-colors"
+                        className="inline-flex items-center justify-center px-3.5 py-1.5 rounded-md text-xs font-medium border border-border bg-card hover:bg-accent text-foreground transition-all duration-150 active:scale-95 shadow-2xs"
                       >
                         Back to Homepage
                       </Link>
@@ -618,7 +620,7 @@ export default function MarketplacePage() {
                   ) : (
                     <Link
                       to="/"
-                      className="inline-flex items-center justify-center px-4 py-2 rounded-md text-sm font-medium bg-primary text-primary-foreground hover:bg-primary/90 transition-colors shadow-xs"
+                      className="inline-flex items-center justify-center px-4 py-2 rounded-md text-sm font-medium bg-primary text-primary-foreground hover:bg-primary/90 transition-all duration-150 shadow-xs active:scale-95"
                     >
                       Back to Homepage
                     </Link>

@@ -7,6 +7,7 @@ import { Input } from '../components/ui/input.jsx';
 import Spinner from '../components/common/Spinner.jsx';
 import EmptyState from '../components/common/EmptyState.jsx';
 import NotificationBanner from '../components/common/NotificationBanner.jsx';
+import { ListingsGridSkeleton } from '../components/common/Skeletons.jsx';
 import {
   SearchIcon,
   MapPinIcon,
@@ -257,7 +258,7 @@ export default function HomePage() {
                 <Button
                   type="submit"
                   size="lg"
-                  className="w-full h-11 font-semibold flex items-center justify-center gap-2 shadow-sm"
+                  className="w-full h-11 font-semibold flex items-center justify-center gap-2 shadow-sm active:scale-[0.98] transition-all"
                 >
                   <SearchIcon className="w-4 h-4" />
                   <span>Search</span>
@@ -306,7 +307,7 @@ export default function HomePage() {
                 key={cat.id}
                 type="button"
                 onClick={() => handleCategoryClick(cat.id)}
-                className="group flex flex-col items-start p-5 rounded-xl border border-border bg-card hover:bg-accent/40 hover:border-primary/40 hover:shadow-md transition-all text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                className="group flex flex-col items-start p-5 rounded-xl border border-border bg-card hover:bg-accent/40 hover:border-primary/40 hover:shadow-md transition-all duration-200 text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring active:scale-[0.98]"
               >
                 <div className="w-12 h-12 rounded-lg bg-primary/10 text-primary flex items-center justify-center mb-4 group-hover:bg-primary group-hover:text-primary-foreground transition-colors shrink-0">
                   <IconComponent className="w-6 h-6 transition-colors" />
@@ -328,7 +329,7 @@ export default function HomePage() {
           <button
             type="button"
             onClick={() => navigate('/marketplace')}
-            className="group flex flex-col items-start justify-center p-5 rounded-xl border border-dashed border-primary/50 bg-primary/5 hover:bg-primary/10 hover:border-primary hover:shadow-md transition-all text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+            className="group flex flex-col items-start justify-center p-5 rounded-xl border border-dashed border-primary/50 bg-primary/5 hover:bg-primary/10 hover:border-primary hover:shadow-md transition-all duration-200 text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring active:scale-[0.98]"
           >
             <div className="w-12 h-12 rounded-lg bg-primary text-primary-foreground flex items-center justify-center mb-4 shadow-xs">
               <StoreIcon className="w-6 h-6" />
@@ -369,7 +370,7 @@ export default function HomePage() {
                 key={city}
                 type="button"
                 onClick={() => handleCityClick(city)}
-                className="inline-flex items-center gap-1.5 px-4 py-2 rounded-full border border-border bg-card text-xs sm:text-sm font-medium text-foreground hover:bg-primary hover:text-primary-foreground hover:border-primary transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring shadow-2xs"
+                className="inline-flex items-center gap-1.5 px-4 py-2 rounded-full border border-border bg-card text-xs sm:text-sm font-medium text-foreground hover:bg-primary hover:text-primary-foreground hover:border-primary transition-all duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring shadow-2xs hover:shadow-xs active:scale-95"
               >
                 <MapPinIcon className="w-3.5 h-3.5" />
                 <span>{city}</span>
@@ -409,11 +410,11 @@ export default function HomePage() {
           </Link>
         </div>
 
-        {/* Loading State */}
+        {/* Loading State: Content-shaped Skeletons */}
         {isLoadingListings && (
-          <div className="flex flex-col items-center justify-center py-20 gap-3" aria-live="polite">
-            <Spinner size="lg" label="Loading featured commercial properties..." />
-            <p className="text-sm text-muted-foreground">Loading featured commercial spaces...</p>
+          <div aria-live="polite" className="py-2">
+            <span className="sr-only">Loading featured commercial spaces...</span>
+            <ListingsGridSkeleton count={6} viewMode="grid" />
           </div>
         )}
 

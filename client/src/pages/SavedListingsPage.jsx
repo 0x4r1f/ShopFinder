@@ -6,6 +6,7 @@ import { Button } from '../components/ui/button.jsx';
 import Spinner from '../components/common/Spinner.jsx';
 import NotificationBanner from '../components/common/NotificationBanner.jsx';
 import EmptyState from '../components/common/EmptyState.jsx';
+import { ListingsGridSkeleton } from '../components/common/Skeletons.jsx';
 import {
   StoreIcon,
   MapPinIcon,
@@ -223,12 +224,12 @@ export default function SavedListingsPage({ initialData = null }) {
             size="sm"
             onClick={() => fetchFavorites(pagination.page || 1)}
             disabled={loading}
-            className="gap-2"
+            className="gap-2 active:scale-95 transition-all"
           >
             <RefreshIcon className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
             <span>Refresh</span>
           </Button>
-          <Button asChild size="sm">
+          <Button asChild size="sm" className="active:scale-95 transition-all">
             <Link to="/marketplace">
               <span>Browse Marketplace</span>
             </Link>
@@ -260,6 +261,7 @@ export default function SavedListingsPage({ initialData = null }) {
               variant="default"
               size="sm"
               onClick={() => fetchFavorites(pagination.page || 1)}
+              className="active:scale-95 transition-all"
             >
               Try Again
             </Button>
@@ -267,13 +269,13 @@ export default function SavedListingsPage({ initialData = null }) {
         </NotificationBanner>
       )}
 
-      {/* 4. Loading State */}
+      {/* 4. Loading State: Content-shaped Skeletons */}
       {loading && !favorites && (
-        <div className="py-20 flex flex-col items-center justify-center text-center">
-          <Spinner size="lg" label="Loading saved properties..." />
-          <p className="mt-4 text-sm text-muted-foreground">
-            Fetching your bookmarked commercial properties from database...
-          </p>
+        <div className="py-2" aria-live="polite" data-testid="saved-listings-loading">
+          <span className="sr-only">
+            Loading saved properties... Fetching your bookmarked commercial properties from database...
+          </span>
+          <ListingsGridSkeleton count={6} viewMode="grid" />
         </div>
       )}
 
@@ -421,7 +423,7 @@ export default function SavedListingsPage({ initialData = null }) {
                         disabled={isDeleting}
                         data-testid={`unsave-button-${listingId}`}
                         aria-label={`Remove ${listing.title} from saved properties`}
-                        className="text-muted-foreground hover:text-destructive hover:bg-destructive/10 text-xs px-2.5 h-8 gap-1.5 focus-visible:ring-2 focus-visible:ring-destructive"
+                        className="text-muted-foreground hover:text-destructive hover:bg-destructive/10 text-xs px-2.5 h-8 gap-1.5 focus-visible:ring-2 focus-visible:ring-destructive active:scale-95 transition-all"
                       >
                         {isDeleting ? (
                           <>

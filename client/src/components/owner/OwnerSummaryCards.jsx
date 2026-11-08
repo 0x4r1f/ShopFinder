@@ -78,7 +78,7 @@ export default function OwnerSummaryCards({
         {cards.map((card) => (
           <div
             key={card.id}
-            className={`p-5 rounded-xl border transition-colors shadow-xs ${card.containerClass}`}
+            className={`p-5 rounded-xl border transition-all duration-200 hover:shadow-md shadow-xs ${card.containerClass}`}
           >
             <div className="flex items-center justify-between gap-3">
               <span className="text-sm font-medium text-muted-foreground">{card.title}</span>

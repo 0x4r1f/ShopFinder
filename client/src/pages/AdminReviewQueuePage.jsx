@@ -6,6 +6,7 @@ import Spinner from '../components/common/Spinner.jsx';
 import NotificationBanner from '../components/common/NotificationBanner.jsx';
 import EmptyState from '../components/common/EmptyState.jsx';
 import RejectListingModal from '../components/admin/RejectListingModal.jsx';
+import { TableSkeleton } from '../components/common/Skeletons.jsx';
 import {
   ShieldCheckIcon,
   StoreIcon,
@@ -230,13 +231,32 @@ export default function AdminReviewQueuePage({ initialData = null }) {
         </NotificationBanner>
       )}
 
-      {/* 3. Loading State */}
+      {/* 3. Loading State: TableSkeleton */}
       {loading && !listings && (
-        <div className="py-20 flex flex-col items-center justify-center text-center">
-          <Spinner size="lg" label="Loading pending review queue..." />
-          <p className="mt-4 text-sm text-muted-foreground">
-            Fetching submitted commercial properties from database...
-          </p>
+        <div
+          role="status"
+          className="bg-card rounded-xl border border-border shadow-xs overflow-hidden"
+          aria-live="polite"
+        >
+          <span className="sr-only">
+            Loading pending review queue... Fetching submitted commercial properties from database...
+          </span>
+          <div className="overflow-x-auto scrollbar-thin">
+            <table className="w-full text-left border-collapse text-sm" aria-label="Loading review queue...">
+              <thead>
+                <tr className="border-b border-border bg-muted/30 text-xs font-semibold text-muted-foreground uppercase tracking-wider">
+                  <th scope="col" className="py-3 px-4">Property</th>
+                  <th scope="col" className="py-3 px-4">Price</th>
+                  <th scope="col" className="py-3 px-4">Location</th>
+                  <th scope="col" className="py-3 px-4">Owner</th>
+                  <th scope="col" className="py-3 px-4">Submitted</th>
+                  <th scope="col" className="py-3 px-4">Status</th>
+                  <th scope="col" className="py-3 px-4 text-right">Actions</th>
+                </tr>
+              </thead>
+              <TableSkeleton rows={6} columns={7} />
+            </table>
+          </div>
         </div>
       )}
 
@@ -384,7 +404,7 @@ export default function AdminReviewQueuePage({ initialData = null }) {
                               size="sm"
                               onClick={() => handleApprove(item)}
                               disabled={isActionBusy}
-                              className="h-7 px-2 text-xs text-emerald-700 hover:text-emerald-800 hover:bg-emerald-50 border-emerald-300 gap-1"
+                              className="h-7 px-2 text-xs text-emerald-700 hover:text-emerald-800 hover:bg-emerald-50 border-emerald-300 gap-1 active:scale-95 transition-all"
                               title="Approve listing immediately"
                               aria-label={`Approve ${item.title}`}
                             >
@@ -398,7 +418,7 @@ export default function AdminReviewQueuePage({ initialData = null }) {
                               size="sm"
                               onClick={() => setRejectModalListing(item)}
                               disabled={isActionBusy}
-                              className="h-7 px-2 text-xs text-destructive hover:bg-destructive/10 border-destructive/30 gap-1"
+                              className="h-7 px-2 text-xs text-destructive hover:bg-destructive/10 border-destructive/30 gap-1 active:scale-95 transition-all"
                               title="Reject listing with mandatory note"
                               aria-label={`Reject ${item.title}`}
                             >
