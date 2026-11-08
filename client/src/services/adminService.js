@@ -272,6 +272,29 @@ export async function deactivateSubscriptionPlan(id, options = {}) {
   return response?.data || null;
 }
 
+/**
+ * Retrieves platform-wide administrative analytics (Phase 12, Task 12.2).
+ *
+ * Communicates strictly with Express REST endpoint GET /api/v1/admin/analytics.
+ * Never connects directly to PocketBase.
+ *
+ * @param {Object} [options={}]
+ * @param {'7d'|'30d'|'90d'} [options.period='30d'] - Time window ('7d', '30d', or '90d')
+ * @param {AbortSignal} [options.signal]
+ * @returns {Promise<Object>} Admin platform analytics payload
+ */
+export async function getAdminAnalytics(options = {}) {
+  const { period = '30d', signal } = options;
+  const params = { period };
+
+  const response = await api.get('/api/v1/admin/analytics', {
+    params,
+    signal,
+  });
+
+  return response?.data || null;
+}
+
 export default {
   getAdminStats,
   getPendingListings,
@@ -285,5 +308,6 @@ export default {
   createSubscriptionPlan,
   updateSubscriptionPlan,
   deactivateSubscriptionPlan,
+  getAdminAnalytics,
 };
 

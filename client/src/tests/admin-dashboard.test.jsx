@@ -5,7 +5,11 @@ import { renderToStaticMarkup } from 'react-dom/server';
 import { MemoryRouter } from 'react-router-dom';
 import { AuthContext } from '../context/AuthContext.jsx';
 import adminService from '../services/adminService.js';
-import AdminDashboardPage, { formatActivityTime } from '../pages/AdminDashboardPage.jsx';
+import AdminDashboardPage, {
+  formatActivityTime,
+  getNextActiveTab,
+  ADMIN_DASHBOARD_TABS,
+} from '../pages/AdminDashboardPage.jsx';
 import Header from '../components/layout/Header.jsx';
 import MobileNav from '../components/layout/MobileNav.jsx';
 import Sidebar from '../components/layout/Sidebar.jsx';
@@ -392,6 +396,131 @@ describe('Phase 7, Task 7.1 — Admin Dashboard Overview (Frontend Unit & Integr
 
       assert.ok(html.includes('href="/admin-dashboard"'), 'Sidebar must link overview to /admin-dashboard');
       assert.ok(html.includes('Overview'), 'Sidebar must display Overview');
+    });
+  });
+
+  // =========================================================================
+  // 6. Dual-View Tab Integration (D-021)
+  // =========================================================================
+  describe('6. Dual-View Tab Integration (D-021)', () => {
+    test('6.1 Renders tab navigation with Overview & Activity and Platform Analytics tabs', () => {
+      const html = renderWithAuth(<AdminDashboardPage initialStats={mockStatsData} />);
+
+      assert.ok(html.includes('role="tablist"'), 'Tab navigation must declare role="tablist"');
+      assert.ok(html.includes('id="admin-tab-overview"'), 'Overview tab must exist');
+      assert.ok(html.includes('id="admin-tab-analytics"'), 'Analytics tab must exist');
+      assert.ok(html.includes('Overview &amp; Activity') || html.includes('Overview & Activity'), 'Overview tab label must exist');
+      assert.ok(html.includes('Platform Analytics'), 'Analytics tab label must exist');
+
+      // Default state: overview selected
+      assert.ok(html.includes('id="admin-tab-overview" aria-selected="true"'), 'Overview tab must be selected by default');
+      assert.ok(html.includes('id="admin-tab-analytics" aria-selected="false"'), 'Analytics tab must be unselected by default');
+    });
+
+    test('6.2 Overview tabpanel is visible and displays platform metrics by default', () => {
+      const html = renderWithAuth(<AdminDashboardPage initialStats={mockStatsData} />);
+
+      // Tabpanel associations
+      assert.ok(html.includes('id="admin-panel-overview" aria-labelledby="admin-tab-overview"'), 'Overview panel must be linked to its tab');
+      assert.ok(html.includes('id="admin-panel-analytics" aria-labelledby="admin-tab-analytics"'), 'Analytics panel must be linked to its tab');
+
+      // Overview panel should not have "hidden" class
+      assert.ok(!html.includes('id="admin-panel-overview" aria-labelledby="admin-tab-overview" class="hidden"'), 'Overview panel must be visible');
+      // Analytics panel should have "hidden" class
+      assert.ok(html.includes('id="admin-panel-analytics" aria-labelledby="admin-tab-analytics" class="hidden"'), 'Analytics panel must be hidden by default');
+
+      // Core overview content rendered
+      assert.ok(html.includes('Platform Metrics Overview'), 'Overview section title must be present');
+      assert.ok(html.includes('Total Commercial Listings'), 'KPI cards must be rendered in overview');
+      assert.ok(html.includes('Gulshan Prime Tower Level 4'), 'Recent activity must be rendered in overview');
+    });
+
+    test('6.3 Displays Platform Analytics view when initialTab is "analytics"', () => {
+      const html = renderWithAuth(<AdminDashboardPage initialStats={mockStatsData} initialTab="analytics" />);
+
+      // Analytics tab is selected
+      assert.ok(html.includes('id="admin-tab-analytics" aria-selected="true"'), 'Analytics tab must be selected');
+      assert.ok(html.includes('id="admin-tab-overview" aria-selected="false"'), 'Overview tab must not be selected');
+
+      // Analytics panel is visible, Overview panel is hidden
+      assert.ok(!html.includes('id="admin-panel-analytics" aria-labelledby="admin-tab-analytics" class="hidden"'), 'Analytics panel must be visible');
+      assert.ok(html.includes('id="admin-panel-overview" aria-labelledby="admin-tab-overview" class="hidden"'), 'Overview panel must have hidden class');
+
+      // AdminAnalyticsOverview component is rendered inside analytics panel
+      assert.ok(html.includes('Platform Intelligence &amp; Analytics') || html.includes('Platform Intelligence & Analytics'), 'Analytics overview header must be present');
+      assert.ok(html.includes('Last 7 Days'), 'Timeframe preset 7d button must be present');
+      assert.ok(html.includes('Last 30 Days'), 'Timeframe preset 30d button must be present');
+      assert.ok(html.includes('Last 90 Days'), 'Timeframe preset 90d button must be present');
+    });
+
+    test('6.4 Preserves independent refresh controls for both views without collision', () => {
+      const html = renderWithAuth(<AdminDashboardPage initialStats={mockStatsData} initialTab="analytics" />);
+
+      // Header refresh button for overview stats
+      assert.ok(html.includes('aria-label="Refresh statistics"'), 'Overview refresh action must exist in header');
+      // Dedicated analytics refresh button in analytics view
+      assert.ok(html.includes('aria-label="Refresh platform analytics"'), 'Dedicated analytics refresh action must exist');
+    });
+
+    test('6.5 Implements roving tabindex according to WAI-ARIA tab pattern', () => {
+      // Case A: Default (overview active)
+      const htmlOverview = renderWithAuth(<AdminDashboardPage initialStats={mockStatsData} initialTab="overview" />);
+      assert.ok(
+        htmlOverview.includes('id="admin-tab-overview" tabindex="0"') ||
+        htmlOverview.includes('id="admin-tab-overview" tabIndex="0"') ||
+        htmlOverview.includes('tabindex="0" aria-selected="true" id="admin-tab-overview"') ||
+        htmlOverview.match(/id="admin-tab-overview"[^>]*tabindex="0"/i),
+        'Active overview tab must have tabindex="0"'
+      );
+      assert.ok(
+        htmlOverview.includes('id="admin-tab-analytics" tabindex="-1"') ||
+        htmlOverview.includes('id="admin-tab-analytics" tabIndex="-1"') ||
+        htmlOverview.match(/id="admin-tab-analytics"[^>]*tabindex="-1"/i),
+        'Inactive analytics tab must have tabindex="-1"'
+      );
+
+      // Case B: Analytics active
+      const htmlAnalytics = renderWithAuth(<AdminDashboardPage initialStats={mockStatsData} initialTab="analytics" />);
+      assert.ok(
+        htmlAnalytics.match(/id="admin-tab-overview"[^>]*tabindex="-1"/i),
+        'Inactive overview tab must have tabindex="-1"'
+      );
+      assert.ok(
+        htmlAnalytics.match(/id="admin-tab-analytics"[^>]*tabindex="0"/i),
+        'Active analytics tab must have tabindex="0"'
+      );
+    });
+
+    test('6.6 getNextActiveTab handles ArrowRight, ArrowLeft, Home, and End with wraparound', () => {
+      // ArrowRight: sequential and wraparound
+      assert.strictEqual(getNextActiveTab('overview', 'ArrowRight'), 'analytics');
+      assert.strictEqual(getNextActiveTab('analytics', 'ArrowRight'), 'overview', 'ArrowRight at end must wrap to overview');
+
+      // ArrowLeft: sequential and wraparound
+      assert.strictEqual(getNextActiveTab('analytics', 'ArrowLeft'), 'overview');
+      assert.strictEqual(getNextActiveTab('overview', 'ArrowLeft'), 'analytics', 'ArrowLeft at start must wrap to analytics');
+
+      // Home and End
+      assert.strictEqual(getNextActiveTab('analytics', 'Home'), 'overview', 'Home key must select first tab (overview)');
+      assert.strictEqual(getNextActiveTab('overview', 'Home'), 'overview');
+      assert.strictEqual(getNextActiveTab('overview', 'End'), 'analytics', 'End key must select last tab (analytics)');
+      assert.strictEqual(getNextActiveTab('analytics', 'End'), 'analytics');
+
+      // Non-navigation keys leave tab unchanged
+      assert.strictEqual(getNextActiveTab('overview', 'Tab'), 'overview');
+      assert.strictEqual(getNextActiveTab('analytics', 'Escape'), 'analytics');
+      assert.strictEqual(getNextActiveTab('overview', 'Enter'), 'overview');
+    });
+
+    test('6.7 Lazy mounting: analytics is not rendered until analytics tab is activated', () => {
+      // Overview view: analytics container is not mounted
+      const htmlOverview = renderWithAuth(<AdminDashboardPage initialStats={mockStatsData} initialTab="overview" />);
+      assert.ok(!htmlOverview.includes('data-testid="admin-analytics-overview"'), 'Analytics overview must not be mounted initially');
+      assert.ok(!htmlOverview.includes('Platform Intelligence & Analytics'), 'Analytics header must not exist in overview DOM');
+
+      // Analytics view: analytics container is mounted
+      const htmlAnalytics = renderWithAuth(<AdminDashboardPage initialStats={mockStatsData} initialTab="analytics" />);
+      assert.ok(htmlAnalytics.includes('data-testid="admin-analytics-overview"'), 'Analytics overview must be mounted when active');
     });
   });
 });

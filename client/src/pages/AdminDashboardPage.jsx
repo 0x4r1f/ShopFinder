@@ -1,5 +1,7 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
+import { useLocation } from 'react-router-dom';
 import adminService from '../services/adminService.js';
+import AdminAnalyticsOverview from '../components/admin/AdminAnalyticsOverview.jsx';
 import { Button } from '../components/ui/button.jsx';
 import Spinner from '../components/common/Spinner.jsx';
 import NotificationBanner from '../components/common/NotificationBanner.jsx';
@@ -11,6 +13,7 @@ import {
   UserIcon,
   RefreshIcon,
   FileTextIcon,
+  EyeIcon,
 } from '../components/common/Icons.jsx';
 
 /**
@@ -33,6 +36,30 @@ export function formatActivityTime(dateStr) {
   }
 }
 
+export const ADMIN_DASHBOARD_TABS = ['overview', 'analytics'];
+
+/**
+ * Pure WAI-ARIA tab navigation helper for roving focus across tabs.
+ */
+export function getNextActiveTab(currentTab, key) {
+  const currentIndex = ADMIN_DASHBOARD_TABS.indexOf(currentTab);
+  if (currentIndex === -1) return currentTab;
+
+  if (key === 'ArrowRight') {
+    return ADMIN_DASHBOARD_TABS[(currentIndex + 1) % ADMIN_DASHBOARD_TABS.length];
+  }
+  if (key === 'ArrowLeft') {
+    return ADMIN_DASHBOARD_TABS[(currentIndex - 1 + ADMIN_DASHBOARD_TABS.length) % ADMIN_DASHBOARD_TABS.length];
+  }
+  if (key === 'Home') {
+    return ADMIN_DASHBOARD_TABS[0];
+  }
+  if (key === 'End') {
+    return ADMIN_DASHBOARD_TABS[ADMIN_DASHBOARD_TABS.length - 1];
+  }
+  return currentTab;
+}
+
 /**
  * ShopFinder — Admin Dashboard Page (Phase 7, Task 7.1)
  *
@@ -41,7 +68,43 @@ export function formatActivityTime(dateStr) {
  * 2. Recent platform activity feed (Listing submissions & User registrations).
  * 3. Loading, empty, and error recovery states.
  */
-export default function AdminDashboardPage({ initialStats = null }) {
+export default function AdminDashboardPage({ initialStats = null, initialTab = 'overview' }) {
+  let location = null;
+  try {
+    location = useLocation();
+  } catch {
+    location = null;
+  }
+
+  const effectiveInitialTab = initialTab || location?.state?.tab || 'overview';
+  const [activeTab, setActiveTab] = useState(effectiveInitialTab);
+  const [hasOpenedAnalytics, setHasOpenedAnalytics] = useState(effectiveInitialTab === 'analytics');
+
+  const overviewTabRef = useRef(null);
+  const analyticsTabRef = useRef(null);
+
+  const selectTab = useCallback((tabId, shouldFocus = false) => {
+    setActiveTab(tabId);
+    if (tabId === 'analytics') {
+      setHasOpenedAnalytics(true);
+    }
+    if (shouldFocus) {
+      if (tabId === 'overview') {
+        overviewTabRef.current?.focus();
+      } else if (tabId === 'analytics') {
+        analyticsTabRef.current?.focus();
+      }
+    }
+  }, []);
+
+  const handleTabKeyDown = (e) => {
+    const targetTab = getNextActiveTab(activeTab, e.key);
+    if (targetTab !== activeTab) {
+      e.preventDefault();
+      selectTab(targetTab, true);
+    }
+  };
+
   const [stats, setStats] = useState(initialStats);
   const [loading, setLoading] = useState(!initialStats);
   const [error, setError] = useState(null);
@@ -116,35 +179,89 @@ export default function AdminDashboardPage({ initialStats = null }) {
         </div>
       </div>
 
-      {/* 2. Loading State */}
-      {loading && !stats && (
-        <div className="py-20 flex flex-col items-center justify-center text-center">
-          <Spinner size="lg" label="Loading platform statistics..." />
-          <p className="mt-4 text-sm text-muted-foreground">
-            Fetching platform overview metrics from database...
-          </p>
-        </div>
-      )}
-
-      {/* 3. Error Banner with Retry */}
-      {error && (
-        <NotificationBanner
-          variant="error"
-          title="Failed to Load Statistics"
-          onClose={() => setError(null)}
+      {/* 2. Navigation Tabs (Overview & Activity vs Platform Analytics) per D-021 */}
+      <div
+        className="flex items-center gap-6 border-b border-border"
+        role="tablist"
+        aria-label="Admin Dashboard Views"
+      >
+        <button
+          ref={overviewTabRef}
+          type="button"
+          role="tab"
+          id="admin-tab-overview"
+          aria-selected={activeTab === 'overview'}
+          aria-controls="admin-panel-overview"
+          tabIndex={activeTab === 'overview' ? 0 : -1}
+          onClick={() => selectTab('overview')}
+          onKeyDown={handleTabKeyDown}
+          className={`pb-3 text-sm font-semibold transition-colors border-b-2 flex items-center gap-2 ${
+            activeTab === 'overview'
+              ? 'border-primary text-primary'
+              : 'border-transparent text-muted-foreground hover:text-foreground'
+          }`}
         >
-          <div className="space-y-3">
-            <p>{error}</p>
-            <Button variant="default" size="sm" onClick={loadStats}>
-              Try Again
-            </Button>
-          </div>
-        </NotificationBanner>
-      )}
+          <FileTextIcon className="w-4 h-4" />
+          <span>Overview & Activity</span>
+        </button>
 
-      {/* 4. Dashboard Content (Stats & Recent Activity) */}
-      {stats && (
-        <div className="space-y-8">
+        <button
+          ref={analyticsTabRef}
+          type="button"
+          role="tab"
+          id="admin-tab-analytics"
+          aria-selected={activeTab === 'analytics'}
+          aria-controls="admin-panel-analytics"
+          tabIndex={activeTab === 'analytics' ? 0 : -1}
+          onClick={() => selectTab('analytics')}
+          onKeyDown={handleTabKeyDown}
+          className={`pb-3 text-sm font-semibold transition-colors border-b-2 flex items-center gap-2 ${
+            activeTab === 'analytics'
+              ? 'border-primary text-primary'
+              : 'border-transparent text-muted-foreground hover:text-foreground'
+          }`}
+        >
+          <EyeIcon className="w-4 h-4" />
+          <span>Platform Analytics</span>
+        </button>
+      </div>
+
+      {/* 3. Tab Panel 1: Overview & Activity */}
+      <div
+        role="tabpanel"
+        id="admin-panel-overview"
+        aria-labelledby="admin-tab-overview"
+        className={activeTab === 'overview' ? 'space-y-8' : 'hidden'}
+      >
+        {/* Loading State */}
+        {loading && !stats && (
+          <div className="py-20 flex flex-col items-center justify-center text-center">
+            <Spinner size="lg" label="Loading platform statistics..." />
+            <p className="mt-4 text-sm text-muted-foreground">
+              Fetching platform overview metrics from database...
+            </p>
+          </div>
+        )}
+
+        {/* Error Banner with Retry */}
+        {error && (
+          <NotificationBanner
+            variant="error"
+            title="Failed to Load Statistics"
+            onClose={() => setError(null)}
+          >
+            <div className="space-y-3">
+              <p>{error}</p>
+              <Button variant="default" size="sm" onClick={loadStats}>
+                Try Again
+              </Button>
+            </div>
+          </NotificationBanner>
+        )}
+
+        {/* Dashboard Content (Stats & Recent Activity) */}
+        {stats && (
+          <div className="space-y-8">
           {/* Primary Statistics Cards */}
           <div>
             <h2 className="text-base font-semibold text-foreground mb-4">
@@ -350,6 +467,17 @@ export default function AdminDashboardPage({ initialStats = null }) {
           </div>
         </div>
       )}
+      </div>
+
+      {/* 4. Tab Panel 2: Platform Analytics per D-021 */}
+      <div
+        role="tabpanel"
+        id="admin-panel-analytics"
+        aria-labelledby="admin-tab-analytics"
+        className={activeTab === 'analytics' ? 'space-y-6' : 'hidden'}
+      >
+        {hasOpenedAnalytics && <AdminAnalyticsOverview />}
+      </div>
     </div>
   );
 }
