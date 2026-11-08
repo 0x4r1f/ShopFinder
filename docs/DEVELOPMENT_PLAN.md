@@ -151,7 +151,7 @@ Tasks:
 - [x] 10.4 Verify customer active subscription and credit balance (`credits_remaining > 0`); abort with transaction rollback if insufficient
 - [x] 10.5 Atomically increment `credits_used` and create `revealed_contacts` record using `txApp` with database unique constraint backstop
 - [x] 10.6 Retrieve private owner phone from `owner_contacts` collection (D-014) only on committed transaction
-- [ ] 10.7 Implement Express reveal route (`POST /api/v1/reveal/:listingId`) with CSRF/Origin check, auth, and role verification
+- [x] 10.7 Implement Express reveal route (`POST /api/v1/customer/reveal` & `POST /api/v1/reveal/:listingId`) with CSRF/Origin check, auth, and role verification
 - [ ] 10.8 Implement Customer Reveal History endpoint (`GET /api/v1/reveal/history`)
 - [ ] 10.9 Build interactive "Reveal Contact" modal on Property Details page (credit balance check, confirmation modal, credit warning, unmask contact) and customer Reveal History table
 

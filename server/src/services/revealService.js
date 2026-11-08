@@ -230,3 +230,73 @@ export async function getRevealedOwnerContact({ customerId, listingId } = {}) {
   }
 }
 
+/**
+ * Executes full contact reveal workflow for an authenticated customer (Phase 10, Task 10.7).
+ *
+ * 1. Delegates atomic reveal transaction to PocketBase hook (D-013 & D-017).
+ *    Handles credit deduction (or idempotent repeat reveal check) atomically in PocketBase SQLite.
+ * 2. Retrieves private owner phone from owner_contacts hook (D-014).
+ * 3. Never logs phone numbers or exposes superuser credentials.
+ *
+ * @param {Object} params
+ * @param {string} params.customerId - Verified customer ID from authenticated session (req.user.id)
+ * @param {string} params.listingId - Target listing identifier
+ * @returns {Promise<{
+ *   listingId: string,
+ *   ownerId: string,
+ *   phone: string,
+ *   alreadyRevealed: boolean,
+ *   creditDeducted: boolean,
+ *   creditsDeducted: number,
+ *   creditsRemaining: number|null,
+ *   revealId: string|null,
+ *   revealedAt: string|null
+ * }>}
+ */
+export async function revealContactForCustomer({ customerId, listingId } = {}) {
+  if (!customerId || typeof customerId !== 'string' || customerId.trim() === '') {
+    const err = new Error('customerId is required and must be a non-empty string.');
+    err.status = 400;
+    throw err;
+  }
+
+  if (!listingId || typeof listingId !== 'string' || listingId.trim() === '') {
+    const err = new Error('listingId is required and must be a non-empty string.');
+    err.status = 400;
+    throw err;
+  }
+
+  const cleanCustomerId = customerId.trim();
+  const cleanListingId = listingId.trim();
+
+  // 1. Delegate atomic reveal transaction (D-013 & D-017)
+  const revealResponse = await delegateRevealTransaction({
+    customerId: cleanCustomerId,
+    listingId: cleanListingId,
+  });
+
+  const revealData = revealResponse?.data || {};
+
+  // 2. Retrieve authorized owner phone from private owner_contacts (D-014)
+  const contactResponse = await getRevealedOwnerContact({
+    customerId: cleanCustomerId,
+    listingId: cleanListingId,
+  });
+
+  const contactData = contactResponse?.data || {};
+
+  // 3. Assemble unified customer payload
+  return {
+    listingId: cleanListingId,
+    ownerId: revealData.ownerId || contactData.ownerId || null,
+    phone: contactData.phone || '',
+    alreadyRevealed: Boolean(revealData.alreadyRevealed),
+    creditDeducted: Boolean(revealData.creditDeducted),
+    creditsDeducted: Number.isFinite(revealData.creditsDeducted) ? revealData.creditsDeducted : 0,
+    creditsRemaining: revealData.creditsRemaining !== undefined ? revealData.creditsRemaining : null,
+    revealId: revealData.revealId || null,
+    revealedAt: revealData.revealedAt || null,
+  };
+}
+
+
