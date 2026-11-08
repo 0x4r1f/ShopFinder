@@ -173,11 +173,20 @@ Tasks:
 ---
 
 ### PHASE 12 — Analytics & Final UI
-> **Requires authorization before starting**
+> Status: In Progress 🔄
 
 Tasks:
-- [ ] 12.1 Implement Owner analytics endpoints & UI: listing view metrics, inquiry conversion rates, daily engagement charts
+- [x] 12.1 Implement Owner analytics endpoints & UI: listing view metrics, inquiry conversion rates, daily engagement charts
 - [ ] 12.2 Implement Admin platform analytics endpoints & UI: user growth, listing volume by city/category, revenue metrics, credit consumption rates
+  - **Decisions Approved & Documented:**
+    - **D-019 (Timeframe Presets & Period Segmentation):** Standardize on `7d`, `30d`, and `90d` presets. Apply presets consistently to user growth, revenue trends, and daily credit consumption velocity with continuous daily series. Clearly distinguish lifetime cumulative totals from selected-period metrics.
+    - **D-020 (City Volume Distribution):** Display top 5 cities by approved listing count; aggregate remaining cities into single `Other` bucket. Calculate percentages against total approved inventory.
+    - **D-021 (Admin Dashboard Dual-View):** Preserve existing Overview & Activity dashboard; add separate `Platform Analytics` tab. Zero regression of existing moderation and review workflows.
+  - **Authoritative Metric Semantics:**
+    - *Listing Dates & Inventory:* Listing `created` timestamps denote creation dates, NOT approval dates (no transition audit exists). Inventory trends based on `created` must be labelled as listing creation trends. Active inventory is derived strictly where `status === 'approved'`.
+    - *Revenue:* Authoritative source is `payments` collection. Strictly `status === 'success'` payments count toward gross revenue (recorded `amount` and `currency`). Pending and failed payments are strictly excluded. Package breakdown uses payment records and plan relations.
+    - *Credit Consumption:* Authoritative source for reveal events is `revealed_contacts`. `user_subscriptions` tracks lifetime purchased, consumed (`credits_used`), and remaining balances. Invariant: 1 reveal = 1 credit; zero double-counting.
+    - *Security & Architecture:* Strictly Express REST endpoint (`GET /api/v1/admin/analytics`, `authorize('admin')`), httpOnly cookie auth (D-010), zero direct client PocketBase access (D-007), privacy preservation with zero phone numbers or unnecessary customer details (D-014), Recharts visualization.
 - [ ] 12.3 Complete platform-wide UI polish: responsive layout adjustments (mobile, tablet, desktop), micro-interactions, empty states, and loading skeletons
 - [ ] 12.4 Build platform static pages: About Us, Terms of Service, Privacy Policy, Contact & FAQ
 

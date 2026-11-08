@@ -326,6 +326,54 @@ Inside `$app.runInTransaction((txApp) => { ... })`:
   4. **Scope Isolation:** Task 2.6 establishes the catalog schema only. Seeding Starter (৳299 / 10 credits) and Pro (৳999 / 100 credits) records remains deferred to Task 2.13. Customer subscription purchase tracking remains in Task 2.7 (`user_subscriptions`).
 - **Authorized by:** Project operator approval 2026-11-05
 
+---
+
+## D-019: Admin Platform Analytics Timeframe Presets & Period Metric Segmentation — **APPROVED**
+- **Date approved:** 2026-11-08
+- **Status:** ✅ Approved
+- **Decision:**
+  Standardize Admin Platform Analytics timeframes to support `7d` (7 days), `30d` (30 days), and `90d` (90 days) presets:
+  1. **Consistent Application:** Apply the selected timeframe preset consistently across user growth dynamics, gross revenue trends, and daily credit consumption velocity.
+  2. **Cumulative vs. Period Distinction:** Platform summary KPI cards must clearly separate and label lifetime cumulative totals (e.g., all-time gross revenue, total registered accounts, lifetime credits consumed) from period-specific metrics (e.g., revenue generated within the selected timeframe, new signups within period, reveals during period).
+  3. **Continuous Daily Series:** Time-series charts for the selected timeframe must generate contiguous daily data points with zero-filled counts for inactive dates, preventing chart distortion.
+  4. **Time Boundaries:** Boundaries are computed in UTC starting at 00:00:00 UTC on `now - (days - 1)` through 23:59:59 UTC on `now`.
+- **Reason:**
+  Provides administrators with short-term (`7d`), monthly (`30d`), and quarterly (`90d`) strategic oversight while maintaining mathematical clarity between platform-wide lifetime balance sheet totals and interval performance.
+- **Authorized by:** Project operator approval 2026-11-08
+
+---
+
+## D-020: Admin Listing Volume Distribution by City (Top 5 & Aggregated Other) — **APPROVED**
+- **Date approved:** 2026-11-08
+- **Status:** ✅ Approved
+- **Decision:**
+  Admin listing volume distribution by city must display the top 5 cities ranked by approved listing volume, aggregating all remaining cities into an `Other` category:
+  1. **Inventory Scope:** City distribution is calculated strictly from currently approved listings (`status === 'approved'`).
+  2. **Top 5 Clamping:** The 5 cities with the highest approved listing counts are listed individually in descending order.
+  3. **Aggregated 'Other':** All approved listings located outside the top 5 cities are aggregated into a single `Other` bucket.
+  4. **Authoritative Percentage Calculation:** Percentage shares must be calculated using the entire active approved listing inventory (`city_count / total_approved_listings * 100`), ensuring percentages accurately sum to 100% across the complete platform inventory rather than only the top 5 subset.
+- **Reason:**
+  Prevents UI clutter and long tail horizontal scrolling on dashboards across dozens of municipalities while maintaining mathematically sound percentage representation across Bangladesh's commercial real estate market.
+- **Authorized by:** Project operator approval 2026-11-08
+
+---
+
+## D-021: Admin Dashboard Dual-View Layout (Overview & Dedicated Platform Analytics Tab) — **APPROVED**
+- **Date approved:** 2026-11-08
+- **Status:** ✅ Approved
+- **Decision:**
+  Integrate Admin Platform Analytics into `/admin-dashboard` using a tabbed navigation interface:
+  1. **Preservation of Existing Overview:** The existing Overview & Activity dashboard (`AdminDashboardPage.jsx`) displaying primary KPI summary cards (Total Listings, Pending Review, Total Users, Role Breakdown) and the 10 most recent platform events is preserved in full without regression or removal.
+  2. **Dedicated Platform Analytics Tab:** Add a secondary tab (`Platform Analytics`) dedicated to comprehensive visualizations:
+     - User growth trends segmented by role (customer, owner, admin).
+     - Active listing inventory distribution by city (Top 5 + Other) and category.
+     - Revenue metrics and daily financial trends (exclusive of pending/failed payments).
+     - Credit consumption velocity and platform utilization rates.
+  3. **Zero Functionality Regression:** Existing moderation shortcuts, refresh behavior, user management links, and review queue workflows remain completely unchanged.
+- **Reason:**
+  Keeps the operational overview immediately actionable for daily moderation tasks while providing rich, uncompromised analytical visualizations on demand without visual congestion.
+- **Authorized by:** Project operator approval 2026-11-08
+
 
 
 

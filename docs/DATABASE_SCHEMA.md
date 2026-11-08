@@ -106,6 +106,8 @@ One record per owner user (enforced by unique index on `owner`).
 > `owner_contacts`. Express strips all relation expansions to safe fields (`id`, `name`) only.
 > `owner.phone` does not exist on `users` — no accidental leakage possible.
 
+> **Listing Analytics & Creation Date Semantics (Task 12.2 / D-019):** Listing `created` timestamps represent initial submission/creation dates, NOT moderation approval dates. The collection does not store status transition audit history. Active marketplace inventory volume is derived strictly from records where `status = "approved"`. Any time-series inventory analysis based on `created` represents listing creation trends.
+
 ---
 
 ## Collection: `listing_images` (ID: `pbc_588048942`)
@@ -229,6 +231,8 @@ One record per owner user (enforced by unique index on `owner`).
 > (the PocketBase-verified auth context). Express passes only the `listingId`; all other
 > identities are resolved server-side from the authenticated session.
 
+> **Credit Consumption & Reveal Tracking Semantics (Task 12.2 / D-019):** `revealed_contacts` is the authoritative source for individual contact reveal events and daily consumption velocity. `user_subscriptions` tracks lifetime purchased, consumed (`credits_used`), and remaining balances. Each successful contact reveal atomically consumes exactly one credit without double-counting.
+
 ---
 
 ## Collection: `saved_listings` (ID: `pbc_3547441969`)
@@ -271,6 +275,8 @@ One record per owner user (enforced by unique index on `owner`).
 | created      | datetime | auto     |                                           |
 
 **PocketBase Access Rules:** All operations — Admin SDK only. Customer reads own via Express endpoint.
+
+> **Revenue Analytics Semantics (Task 12.2 / D-019):** Only records with `status = "success"` count toward platform gross revenue. `payments.amount` and `payments.currency` serve as the authoritative financial source. Pending and failed payments are strictly excluded from gross revenue calculations. Package breakdowns are derived from actual payment records and their plan relations.
 
 ---
 
