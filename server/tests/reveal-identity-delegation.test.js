@@ -87,6 +87,18 @@ describe('Phase 10, Task 10.2 — Trusted Express Identity Delegation and Pocket
     const ownerPb = new PocketBase(env.POCKETBASE_URL);
     const ownAuth = await ownerPb.collection('users').authWithPassword(testOwner.email, 'TestPassword123!');
     ownerToken = ownAuth.token;
+
+    // 4. Create active user_subscriptions record for testCustomer (Task 10.4 credit verification)
+    const activePlan = await adminPb.collection('subscription_plans').getFirstListItem('is_active = true');
+    await adminPb.collection('user_subscriptions').create({
+      user: testCustomer.id,
+      plan: activePlan.id,
+      credits_total: 10,
+      credits_used: 0,
+      status: 'active',
+      purchased_at: new Date().toISOString(),
+      expires_at: null,
+    });
   });
 
   after(async () => {
@@ -377,7 +389,7 @@ describe('Phase 10, Task 10.2 — Trusted Express Identity Delegation and Pocket
       assert.strictEqual(res.status, 200);
       const json = await res.json();
       assert.strictEqual(json.success, true);
-      assert.ok(json.data.task === '10.2' || json.data.task === '10.3');
+      assert.ok(json.data.task === '10.2' || json.data.task === '10.3' || json.data.task === '10.4');
       assert.strictEqual(json.data.customerId, testCustomer.id);
       assert.strictEqual(json.data.customerEmail, testCustomer.email);
       assert.strictEqual(json.data.transactionCommitted, true);

@@ -27,6 +27,7 @@ describe('Phase 10, Task 10.3 — Idempotent Previous-Reveal Check (D-013 & D-01
   let testListing1 = null;
   let testListing2 = null;
   let testSubscriptionA = null;
+  let testSubscriptionB = null;
   let existingRevealA1 = null;
   const customRouteUrl = `${env.POCKETBASE_URL}/api/custom/reveal`;
 
@@ -108,13 +109,22 @@ describe('Phase 10, Task 10.3 — Idempotent Previous-Reveal Check (D-013 & D-01
       owner: testOwner.id,
     });
 
-    // 4. Load an active subscription plan and create active user_subscriptions record for Customer A
+    // 4. Load an active subscription plan and create active user_subscriptions record for Customer A & B
     const activePlan = await adminPb.collection('subscription_plans').getFirstListItem('is_active = true');
     testSubscriptionA = await adminPb.collection('user_subscriptions').create({
       user: testCustomerA.id,
       plan: activePlan.id,
       credits_total: 10,
       credits_used: 2,
+      status: 'active',
+      purchased_at: new Date().toISOString(),
+      expires_at: null,
+    });
+    testSubscriptionB = await adminPb.collection('user_subscriptions').create({
+      user: testCustomerB.id,
+      plan: activePlan.id,
+      credits_total: 10,
+      credits_used: 0,
       status: 'active',
       purchased_at: new Date().toISOString(),
       expires_at: null,
@@ -140,6 +150,11 @@ describe('Phase 10, Task 10.3 — Idempotent Previous-Reveal Check (D-013 & D-01
       if (testSubscriptionA?.id) {
         try {
           await adminPb.collection('user_subscriptions').delete(testSubscriptionA.id);
+        } catch {}
+      }
+      if (testSubscriptionB?.id) {
+        try {
+          await adminPb.collection('user_subscriptions').delete(testSubscriptionB.id);
         } catch {}
       }
       if (testListing1?.id) {
@@ -199,7 +214,7 @@ describe('Phase 10, Task 10.3 — Idempotent Previous-Reveal Check (D-013 & D-01
 
       assert.strictEqual(res.success, true);
       assert.strictEqual(res.data.alreadyRevealed, false);
-      assert.strictEqual(res.data.status, 'idempotent_checked_not_revealed');
+      assert.ok(res.data.status === 'idempotent_checked_not_revealed' || res.data.status === 'credits_verified');
       assert.strictEqual(res.data.customerId, testCustomerB.id);
     });
 
@@ -211,7 +226,7 @@ describe('Phase 10, Task 10.3 — Idempotent Previous-Reveal Check (D-013 & D-01
 
       assert.strictEqual(res.success, true);
       assert.strictEqual(res.data.alreadyRevealed, false);
-      assert.strictEqual(res.data.status, 'idempotent_checked_not_revealed');
+      assert.ok(res.data.status === 'idempotent_checked_not_revealed' || res.data.status === 'credits_verified');
       assert.strictEqual(res.data.customerId, testCustomerA.id);
     });
 
@@ -390,12 +405,11 @@ describe('Phase 10, Task 10.3 — Idempotent Previous-Reveal Check (D-013 & D-01
       assert.doesNotMatch(content, /owner_contacts.*find/);
     });
 
-    test('17. No credit validation or deduction is implemented in Task 10.3', () => {
+    test('17. No credit deduction is implemented in Task 10.3 / 10.4', () => {
       const content = fs.readFileSync(hookFilePath, 'utf8');
       // Strip comments to inspect only active executable code
       const codeWithoutComments = content.replace(/\/\*[\s\S]*?\*\/|\/\/.*/g, '');
-      assert.doesNotMatch(codeWithoutComments, /user_subscriptions/);
-      assert.doesNotMatch(codeWithoutComments, /credits_used/);
+      assert.doesNotMatch(codeWithoutComments, /credits_used.*save|decrement|increment/i);
     });
 
     test('18. Database unique index prevents duplicate reveal record creation', async () => {

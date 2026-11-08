@@ -148,7 +148,7 @@ Tasks:
 - [x] 10.1 Implement PocketBase custom route `pocketbase/pb_hooks/reveal.pb.js` using `$app.runInTransaction()` and `txApp` (D-013)
 - [x] 10.2 Enforce customer identity through trusted Express delegation and PocketBase validation (D-017)
 - [x] 10.3 Implement idempotent check in hook: return owner contact immediately with zero credit deduction if previously revealed by this customer
-- [ ] 10.4 Verify customer active subscription and credit balance (`credits_remaining > 0`); abort with transaction rollback if insufficient
+- [x] 10.4 Verify customer active subscription and credit balance (`credits_remaining > 0`); abort with transaction rollback if insufficient
 - [ ] 10.5 Atomically increment `credits_used` and create `revealed_contacts` record using `txApp` with database unique constraint backstop
 - [ ] 10.6 Retrieve private owner phone from `owner_contacts` collection (D-014) only on committed transaction
 - [ ] 10.7 Implement Express reveal route (`POST /api/v1/reveal/:listingId`) with CSRF/Origin check, auth, and role verification

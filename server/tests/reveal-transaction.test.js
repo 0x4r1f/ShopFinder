@@ -40,6 +40,18 @@ describe('Phase 10, Task 10.1 — PocketBase Atomic Contact Reveal Transaction R
     const isolatedCustomerPb = new PocketBase(env.POCKETBASE_URL);
     const customerAuth = await isolatedCustomerPb.collection('users').authWithPassword(uniqueEmail, 'TestPassword123!');
     customerToken = customerAuth.token;
+
+    // 4. Create active user_subscriptions record for testCustomer (Task 10.4 credit verification)
+    const activePlan = await adminPb.collection('subscription_plans').getFirstListItem('is_active = true');
+    await adminPb.collection('user_subscriptions').create({
+      user: testCustomer.id,
+      plan: activePlan.id,
+      credits_total: 10,
+      credits_used: 0,
+      status: 'active',
+      purchased_at: new Date().toISOString(),
+      expires_at: null,
+    });
   });
 
   after(async () => {
