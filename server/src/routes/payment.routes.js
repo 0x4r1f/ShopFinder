@@ -20,5 +20,15 @@ router.post(
   paymentController.initiatePayment
 );
 
+/**
+ * Payment Webhook Route (Phase 11, Task 11.4)
+ *
+ * Server-to-server notification endpoint.
+ * Authenticated via raw-body cryptographic signature verification (zero cookies).
+ *
+ * POST /api/v1/payments/webhook
+ */
+router.post('/webhook', paymentController.handlePaymentWebhook);
+
 export default router;
 

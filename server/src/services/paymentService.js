@@ -235,6 +235,8 @@ export class PaymentService {
 
     // Determine target provider
     const targetProvider = options.provider ||
+      (params.query && params.query.provider) ||
+      (params.headers && (params.headers['x-payment-provider'] || params.headers['X-Payment-Provider'])) ||
       (params.payload && params.payload.provider) ||
       this.getDefaultProviderName();
 

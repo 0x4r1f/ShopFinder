@@ -28,6 +28,7 @@ export class MockPaymentAdapter extends PaymentProviderAdapter {
     super('mock');
     this.secretKey = options.secretKey || 'mock_secret_key_shopfinder_test';
     this.mode = options.mode || 'normal';
+    this.requireSignature = options.requireSignature !== undefined ? options.requireSignature : false;
     this.redirectBaseUrl = options.redirectBaseUrl || 'https://mock-gateway.shopfinder.local/checkout';
   }
 
@@ -100,11 +101,45 @@ export class MockPaymentAdapter extends PaymentProviderAdapter {
 
     const { payload = {}, rawBody, headers = {} } = params;
 
-    // If signature header and rawBody are provided, perform cryptographic verification
+    // 1. Signature verification if signature header or rawBody is present, or if requireSignature is enabled
     const receivedSignature = headers['x-mock-signature'] || headers['X-Mock-Signature'];
-    if (receivedSignature && rawBody) {
+    if (receivedSignature || rawBody || this.requireSignature) {
+      if (!receivedSignature || typeof receivedSignature !== 'string' || !receivedSignature.trim()) {
+        return {
+          isValid: false,
+          provider: this.name,
+          providerRef: payload.providerRef || payload.tran_id || 'UNKNOWN',
+          status: 'failed',
+          error: 'Missing cryptographic signature header (x-mock-signature)',
+        };
+      }
+
+      // 2. Validate signature format and length (HMAC-SHA256 hex string is exactly 64 characters)
+      const cleanSig = receivedSignature.trim();
+      if (!/^[0-9a-fA-F]{64}$/.test(cleanSig)) {
+        return {
+          isValid: false,
+          provider: this.name,
+          providerRef: payload.providerRef || payload.tran_id || 'UNKNOWN',
+          status: 'failed',
+          error: 'Cryptographic signature verification failed: Malformed cryptographic signature format or length mismatch',
+        };
+      }
+
+      // 3. Ensure raw request body is present for verification
+      if (!rawBody || (Buffer.isBuffer(rawBody) && rawBody.length === 0) || (typeof rawBody === 'string' && rawBody.length === 0)) {
+        return {
+          isValid: false,
+          provider: this.name,
+          providerRef: payload.providerRef || payload.tran_id || 'UNKNOWN',
+          status: 'failed',
+          error: 'Cryptographic signature verification failed: missing raw request body',
+        };
+      }
+
+      // 4. Constant-time cryptographic HMAC-SHA256 verification
       const expectedSignature = this.computeSignature(rawBody);
-      const isSignatureValid = timingSafeCompare(receivedSignature, expectedSignature);
+      const isSignatureValid = timingSafeCompare(cleanSig.toLowerCase(), expectedSignature.toLowerCase());
 
       if (!isSignatureValid) {
         return {

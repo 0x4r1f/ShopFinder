@@ -1,5 +1,5 @@
 import { getAdminClient } from '../config/pocketbase.js';
-import { paymentService } from '../services/paymentService.js';
+import { paymentService, UnsupportedProviderError } from '../services/paymentService.js';
 import { validatePaymentInitiateBody } from '../validators/payment.validator.js';
 import { sendSuccess, sendError } from '../utils/apiResponse.js';
 
@@ -165,6 +165,110 @@ export async function initiatePayment(req, res, next) {
       },
       201,
       'Payment initiated successfully'
+    );
+  } catch (err) {
+    if (err.status && err.status >= 400 && err.status < 500) {
+      return sendError(res, err.message, err.status);
+    }
+    next(err);
+  }
+}
+
+/**
+ * POST /api/v1/payments/webhook
+ *
+ * Receives and cryptographically verifies server-to-server payment notifications.
+ *
+ * Security Requirements:
+ * 1. Uses the original unparsed rawBody buffer captured before JSON parsing.
+ * 2. Compares HMAC signatures using crypto.timingSafeEqual in the adapter.
+ * 3. Never trusts frontend redirects or client parameters.
+ * 4. Preserves task boundary: DOES NOT allocate credits or process idempotency (Task 11.5 / 11.6).
+ *
+ * @param {import('express').Request} req
+ * @param {import('express').Response} res
+ * @param {import('express').NextFunction} next
+ */
+export async function handlePaymentWebhook(req, res, next) {
+  try {
+    // 1. Raw body validation
+    const rawBody = req.rawBody;
+    if (!rawBody || (Buffer.isBuffer(rawBody) && rawBody.length === 0)) {
+      return sendError(res, 'Missing or empty webhook request body', 400);
+    }
+
+    // 2. Resolve provider from query or headers or payload
+    const requestedProvider = (
+      req.query?.provider ||
+      req.headers?.['x-payment-provider'] ||
+      req.headers?.['X-Payment-Provider'] ||
+      req.body?.provider
+    );
+
+    if (requestedProvider) {
+      const registered = paymentService.getRegisteredProviders();
+      if (!registered.includes(String(requestedProvider).toLowerCase())) {
+        return sendError(
+          res,
+          `Unsupported payment provider: '${requestedProvider}'. Available providers: ${registered.join(', ')}`,
+          400
+        );
+      }
+    }
+
+    const targetProvider = (
+      requestedProvider || paymentService.getDefaultProviderName()
+    ).toLowerCase();
+
+    // 3. For signed webhooks (e.g. mock adapter), enforce signature header presence upfront
+    if (targetProvider === 'mock') {
+      const signature = req.headers['x-mock-signature'] || req.headers['X-Mock-Signature'];
+      if (!signature || typeof signature !== 'string' || !signature.trim()) {
+        return sendError(res, 'Missing cryptographic signature header (x-mock-signature)', 400);
+      }
+    }
+
+    // 3. Delegate to paymentService.verifyPayment() with rawBody, payload, headers, and query
+    let verificationResult;
+    try {
+      verificationResult = await paymentService.verifyPayment(
+        {
+          payload: req.body,
+          rawBody,
+          headers: req.headers,
+          query: req.query,
+        },
+        {
+          provider: requestedProvider ? String(requestedProvider).toLowerCase() : undefined,
+        }
+      );
+    } catch (verifyErr) {
+      if (verifyErr instanceof UnsupportedProviderError) {
+        return sendError(res, verifyErr.message, 400);
+      }
+      return sendError(res, `Webhook verification failed: ${verifyErr.message}`, 400);
+    }
+
+    // 4. Check cryptographic verification result
+    if (!verificationResult || !verificationResult.isValid) {
+      return sendError(
+        res,
+        verificationResult?.error || 'Cryptographic signature verification failed',
+        400
+      );
+    }
+
+    // 5. Acknowledge verified webhook (Task 11.4 boundary: zero credit allocation)
+    return sendSuccess(
+      res,
+      {
+        verified: true,
+        provider: verificationResult.provider,
+        providerRef: verificationResult.providerRef,
+        status: verificationResult.status,
+      },
+      200,
+      'Webhook notification verified successfully'
     );
   } catch (err) {
     if (err.status && err.status >= 400 && err.status < 500) {

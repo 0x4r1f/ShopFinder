@@ -38,7 +38,13 @@ export function createCsrfProtect(targetClientUrl = env.CLIENT_URL) {
       return next();
     }
 
-    // 2. Extract Origin and Referer headers (case-insensitive in Node http)
+    // 2. Server-to-server webhook endpoints authenticated via cryptographic signatures (exempt from browser cookie CSRF checks)
+    const requestPath = req.originalUrl ? req.originalUrl.split('?')[0] : (req.path || '');
+    if (requestPath === '/api/v1/payments/webhook') {
+      return next();
+    }
+
+    // 3. Extract Origin and Referer headers (case-insensitive in Node http)
     const originHeader = req.headers['origin'];
     const refererHeader = req.headers['referer'] || req.headers['referrer'];
 
