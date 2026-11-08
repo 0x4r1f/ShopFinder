@@ -1,9 +1,10 @@
 /**
- * ShopFinder — Atomic Payment Processing & Idempotency Hook (D-009, D-013)
- * Phase 11, Task 11.5
+ * ShopFinder — Atomic Payment Processing, Idempotency & Credit Allocation Hook (D-001, D-009, D-010, D-013, D-017)
+ * Phase 11, Task 11.6
  *
- * Implements private internal route for atomic payment processing and duplicate
- * webhook detection using PocketBase's native SQLite transactions ($app.runInTransaction).
+ * Implements private internal route for atomic payment processing, duplicate webhook
+ * detection, and server-side credit top-up / subscription activation inside PocketBase's
+ * native SQLite transactions ($app.runInTransaction).
  *
  * ARCHITECTURAL SECURITY RULES:
  * 1. Restricted exclusively to PocketBase Superusers via $apis.requireSuperuserAuth().
@@ -13,7 +14,11 @@
  * 5. If payment status is already 'success', safely acknowledges duplicate with HTTP 200
  *    without duplicate credit top-ups or duplicate subscription records.
  * 6. Concurrency safe: serialized inside $app.runInTransaction using txApp exclusively.
- * 7. Credit allocation and subscription activation are strictly deferred to Task 11.6.
+ * 7. Credit Stacking (D-001): Every successful purchase creates a separate user_subscriptions
+ *    record with status 'active', expires_at = null, credits_used = 0, and credits_total
+ *    derived strictly from the trusted subscription_plans record.
+ * 8. Rejects inactive plans, mismatched amounts, mismatched currencies, and provider mismatches.
+ * 9. Any failure triggers complete SQLite rollback with zero partial mutations.
  */
 
 routerAdd("POST", "/api/custom/payment-process", (e) => {
@@ -37,6 +42,7 @@ routerAdd("POST", "/api/custom/payment-process", (e) => {
   const providerRef = String(rawProviderRef).trim();
   const webhookStatus = String(body.status || "success").trim().toLowerCase();
   const testRollback = body.testRollback === true;
+  const simulateFailureAfterSubSave = body.simulateFailureAfterSubSave === true;
 
   let responseData = null;
 
@@ -69,7 +75,7 @@ routerAdd("POST", "/api/custom/payment-process", (e) => {
     // 3. Inspect current status for idempotency check
     const currentStatus = String(paymentRecord.get("status") || "").trim().toLowerCase();
 
-    // Case A: Payment already succeeded -> Acknowledge duplicate immediately with 0 mutations
+    // Case A: Payment already succeeded -> Acknowledge duplicate immediately with 0 mutations (Task 11.5 / D-009)
     if (currentStatus === "success") {
       responseData = {
         duplicate: true,
@@ -78,9 +84,11 @@ routerAdd("POST", "/api/custom/payment-process", (e) => {
         providerRef: providerRef,
         status: "success",
         paymentId: paymentRecord.id,
+        subscriptionId: paymentRecord.get("subscription") || null,
         planId: paymentRecord.get("plan"),
         userId: paymentRecord.get("user"),
         amount: paymentRecord.get("amount"),
+        creditsAllocated: 0,
         transactionCommitted: true,
       };
       return;
@@ -96,6 +104,7 @@ routerAdd("POST", "/api/custom/payment-process", (e) => {
           providerRef: providerRef,
           status: "failed",
           paymentId: paymentRecord.id,
+          creditsAllocated: 0,
           transactionCommitted: true,
         };
         return;
@@ -110,28 +119,8 @@ routerAdd("POST", "/api/custom/payment-process", (e) => {
       throw new BadRequestError("Simulated database transaction rollback");
     }
 
-    // Case D: Payment is pending -> transition status
-    if (webhookStatus === "success") {
-      paymentRecord.set("status", "success");
-      txApp.save(paymentRecord);
-
-      // NOTE for Task 11.6: Server-side credit top-up and user_subscriptions activation
-      // will be executed here inside this same transaction.
-      responseData = {
-        duplicate: false,
-        alreadyProcessed: false,
-        provider: recordProvider,
-        providerRef: providerRef,
-        status: "success",
-        paymentId: paymentRecord.id,
-        planId: paymentRecord.get("plan"),
-        userId: paymentRecord.get("user"),
-        amount: paymentRecord.get("amount"),
-        transition: "pending_to_success",
-        transactionCommitted: true,
-      };
-      return;
-    } else if (webhookStatus === "failed" || webhookStatus === "cancelled") {
+    // Case D: Pending payment with non-success webhook (failed or cancelled)
+    if (webhookStatus === "failed" || webhookStatus === "cancelled") {
       paymentRecord.set("status", "failed");
       txApp.save(paymentRecord);
 
@@ -142,22 +131,158 @@ routerAdd("POST", "/api/custom/payment-process", (e) => {
         providerRef: providerRef,
         status: "failed",
         paymentId: paymentRecord.id,
+        creditsAllocated: 0,
         transition: "pending_to_failed",
         transactionCommitted: true,
       };
       return;
-    } else {
+    }
+
+    // Case E: Pending payment with success webhook -> Atomic Credit Allocation & Subscription Activation (Task 11.6)
+    if (webhookStatus === "success") {
+      // Step 1: Validate associated subscription plan
+      const planId = paymentRecord.get("plan");
+      if (!planId) {
+        throw new BadRequestError("Payment record is missing associated subscription plan.");
+      }
+
+      let planRecord = null;
+      try {
+        planRecord = txApp.findRecordById("subscription_plans", planId);
+      } catch (e) {
+        planRecord = null;
+      }
+
+      if (!planRecord) {
+        throw new NotFoundError("Associated subscription plan not found: '" + planId + "'");
+      }
+
+      if (planRecord.get("is_active") === false) {
+        throw new BadRequestError("Associated subscription plan is inactive.");
+      }
+
+      // Step 2: Validate customer account
+      const userId = paymentRecord.get("user");
+      if (!userId) {
+        throw new BadRequestError("Payment record is missing associated user.");
+      }
+
+      let userRecord = null;
+      try {
+        userRecord = txApp.findRecordById("users", userId);
+      } catch (e) {
+        userRecord = null;
+      }
+
+      if (!userRecord) {
+        throw new NotFoundError("Associated user record not found: '" + userId + "'");
+      }
+
+      if (userRecord.get("role") !== "customer") {
+        throw new BadRequestError("Associated user is not a customer.");
+      }
+
+      if (userRecord.get("is_active") === false) {
+        throw new BadRequestError("Associated customer account is deactivated.");
+      }
+
+      // Step 3: Validate amount and currency consistency
+      const planPrice = Number(planRecord.get("price"));
+      const paymentAmount = Number(paymentRecord.get("amount"));
+      if (isNaN(planPrice) || isNaN(paymentAmount) || Math.abs(planPrice - paymentAmount) > 0.001) {
+        throw new BadRequestError(
+          "Amount mismatch: payment record amount (" + paymentAmount + ") does not match plan price (" + planPrice + ")."
+        );
+      }
+
+      const paymentCurrency = String(paymentRecord.get("currency") || "").trim().toUpperCase();
+      if (paymentCurrency !== "BDT") {
+        throw new BadRequestError("Currency mismatch: payment record currency must be BDT.");
+      }
+
+      // If webhook explicitly reported currency, verify match
+      if (body.currency !== undefined && body.currency !== null && String(body.currency).trim() !== "") {
+        const webhookCurrency = String(body.currency).trim().toUpperCase();
+        if (webhookCurrency !== paymentCurrency) {
+          throw new BadRequestError(
+            "Currency mismatch: webhook currency '" + webhookCurrency + "' does not match payment currency '" + paymentCurrency + "'."
+          );
+        }
+      }
+
+      // If webhook explicitly reported amount, verify match
+      if (body.amount !== undefined && body.amount !== null && String(body.amount).trim() !== "") {
+        const webhookAmount = Number(body.amount);
+        if (!isNaN(webhookAmount) && Math.abs(webhookAmount - paymentAmount) > 0.001) {
+          throw new BadRequestError(
+            "Amount mismatch: webhook amount (" + webhookAmount + ") does not match payment amount (" + paymentAmount + ")."
+          );
+        }
+      }
+
+      // Step 4: Derive credits total from trusted plan
+      const planCredits = Number(planRecord.get("credits"));
+      if (isNaN(planCredits) || planCredits < 1) {
+        throw new BadRequestError("Invalid plan configuration: plan credits must be at least 1.");
+      }
+
+      // Step 5: Create new user_subscriptions record (D-001 Credit Stacking)
+      const userSubCol = txApp.findCollectionByNameOrId("user_subscriptions");
+      const newSub = new Record(userSubCol);
+      newSub.set("user", userRecord.id);
+      newSub.set("plan", planRecord.id);
+      newSub.set("credits_total", planCredits);
+      newSub.set("credits_used", 0);
+      newSub.set("status", "active");
+      const nowIso = new Date().toISOString();
+      newSub.set("purchased_at", nowIso);
+      newSub.set("expires_at", null);
+
+      txApp.save(newSub);
+
+      // Rollback simulation hook for test verification
+      if (simulateFailureAfterSubSave) {
+        throw new BadRequestError("Simulated failure after subscription creation");
+      }
+
+      // Step 6: Link payment to newly created subscription and mark success
+      paymentRecord.set("subscription", newSub.id);
+      paymentRecord.set("status", "success");
+      txApp.save(paymentRecord);
+
       responseData = {
         duplicate: false,
         alreadyProcessed: false,
         provider: recordProvider,
         providerRef: providerRef,
-        status: "pending",
+        status: "success",
         paymentId: paymentRecord.id,
+        subscriptionId: newSub.id,
+        planId: planRecord.id,
+        planName: planRecord.get("name"),
+        userId: userRecord.id,
+        amount: paymentAmount,
+        currency: paymentCurrency,
+        creditsTotal: planCredits,
+        creditsUsed: 0,
+        creditsAllocated: planCredits,
+        transition: "pending_to_success",
         transactionCommitted: true,
       };
       return;
     }
+
+    // Default pending response
+    responseData = {
+      duplicate: false,
+      alreadyProcessed: false,
+      provider: recordProvider,
+      providerRef: providerRef,
+      status: "pending",
+      paymentId: paymentRecord.id,
+      creditsAllocated: 0,
+      transactionCommitted: true,
+    };
   });
 
   return e.json(200, {

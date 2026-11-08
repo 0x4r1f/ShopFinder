@@ -266,18 +266,33 @@ export async function handlePaymentWebhook(req, res, next) {
       return sendError(res, 'Missing or invalid payment provider reference', 400);
     }
 
-    // 5. Atomic Payment Idempotency & Duplicate Webhook Protection (D-009, D-013)
+    // 5. Atomic Payment Idempotency, Credit Allocation & Subscription Activation (D-001, D-009, D-013)
     const adminPb = await getAdminClient();
     let processResult;
     try {
+      const hookPayload = {
+        provider: verifiedProvider,
+        providerRef: verifiedProviderRef,
+        status: verifiedStatus,
+        ...(req.body?.testRollback ? { testRollback: true } : {}),
+        ...(req.body?.simulateFailureAfterSubSave ? { simulateFailureAfterSubSave: true } : {}),
+      };
+
+      if (req.body?.amount !== undefined) {
+        hookPayload.amount = req.body.amount;
+      } else if (verificationResult.amount !== undefined && verificationResult.amount > 0) {
+        hookPayload.amount = verificationResult.amount;
+      }
+
+      if (req.body?.currency !== undefined) {
+        hookPayload.currency = req.body.currency;
+      } else if (verificationResult.currency) {
+        hookPayload.currency = verificationResult.currency;
+      }
+
       const hookResponse = await adminPb.send('/api/custom/payment-process', {
         method: 'POST',
-        body: {
-          provider: verifiedProvider,
-          providerRef: verifiedProviderRef,
-          status: verifiedStatus,
-          ...(req.body?.testRollback ? { testRollback: true } : {}),
-        },
+        body: hookPayload,
       });
       processResult = {
         verified: true,

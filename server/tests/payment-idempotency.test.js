@@ -167,9 +167,13 @@ describe('Phase 11, Task 11.5 — Payment Idempotency & Duplicate Webhook Protec
       });
       assert.equal(firstRes.status, 200);
 
-      // Snapshot subscriptions and payments counts before duplicate
-      const subsBefore = await adminPb.collection('user_subscriptions').getFullList();
-      const paymentsBefore = await adminPb.collection('payments').getFullList();
+      // Snapshot subscriptions and payments counts before duplicate scoped to testCustomer
+      const subsBefore = await adminPb.collection('user_subscriptions').getFullList({
+        filter: adminPb.filter('user = {:user}', { user: testCustomer.id }),
+      });
+      const paymentsBefore = await adminPb.collection('payments').getFullList({
+        filter: adminPb.filter('user = {:user}', { user: testCustomer.id }),
+      });
 
       // 2. Duplicate delivery -> acknowledges with HTTP 200
       const dupRes = await dispatchSignedWebhook({
@@ -186,9 +190,13 @@ describe('Phase 11, Task 11.5 — Payment Idempotency & Duplicate Webhook Protec
       assert.equal(dupBody.data.status, 'success');
       assert.equal(dupBody.message, 'Payment already processed');
 
-      // Verify zero duplicate records created
-      const subsAfter = await adminPb.collection('user_subscriptions').getFullList();
-      const paymentsAfter = await adminPb.collection('payments').getFullList();
+      // Verify zero duplicate records created for this customer
+      const subsAfter = await adminPb.collection('user_subscriptions').getFullList({
+        filter: adminPb.filter('user = {:user}', { user: testCustomer.id }),
+      });
+      const paymentsAfter = await adminPb.collection('payments').getFullList({
+        filter: adminPb.filter('user = {:user}', { user: testCustomer.id }),
+      });
 
       assert.equal(subsAfter.length, subsBefore.length);
       assert.equal(paymentsAfter.length, paymentsBefore.length);
@@ -424,11 +432,11 @@ describe('Phase 11, Task 11.5 — Payment Idempotency & Duplicate Webhook Protec
   });
 
   // --------------------------------------------------------------------------
-  // 5. Task Boundary Check
+  // 5. Subscription Idempotency Check
   // --------------------------------------------------------------------------
-  describe('Boundary Preservation (Task 11.6 Deferral)', () => {
-    it('guarantees zero user_subscriptions creation and zero credit allocations in Task 11.5', async () => {
-      const ref = `SF_TXN_BOUNDARY_${Date.now()}`;
+  describe('Subscription Idempotency Protection', () => {
+    it('guarantees duplicate webhook does not create additional user_subscriptions records', async () => {
+      const ref = `SF_TXN_SUB_IDEMP_${Date.now()}`;
       const payment = await adminPb.collection('payments').create({
         user: testCustomer.id,
         plan: testPlan.id,
@@ -444,20 +452,31 @@ describe('Phase 11, Task 11.5 — Payment Idempotency & Duplicate Webhook Protec
         filter: adminPb.filter('user = {:user}', { user: testCustomer.id }),
       });
 
-      const res = await dispatchSignedWebhook({
+      // First webhook: creates exactly one subscription
+      const res1 = await dispatchSignedWebhook({
         providerRef: ref,
         amount: 299,
         status: 'success',
       });
+      assert.equal(res1.status, 200);
 
-      assert.equal(res.status, 200);
-
-      const subsAfter = await adminPb.collection('user_subscriptions').getFullList({
+      const subsAfterFirst = await adminPb.collection('user_subscriptions').getFullList({
         filter: adminPb.filter('user = {:user}', { user: testCustomer.id }),
       });
+      assert.equal(subsAfterFirst.length, subsBefore.length + 1);
 
-      // Task 11.6 boundary: user_subscriptions must not be created yet
-      assert.equal(subsAfter.length, subsBefore.length);
+      // Second duplicate webhook: must NOT create another subscription
+      const res2 = await dispatchSignedWebhook({
+        providerRef: ref,
+        amount: 299,
+        status: 'success',
+      });
+      assert.equal(res2.status, 200);
+
+      const subsAfterDuplicate = await adminPb.collection('user_subscriptions').getFullList({
+        filter: adminPb.filter('user = {:user}', { user: testCustomer.id }),
+      });
+      assert.equal(subsAfterDuplicate.length, subsAfterFirst.length);
     });
   });
 });

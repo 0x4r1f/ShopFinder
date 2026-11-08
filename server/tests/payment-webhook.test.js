@@ -49,6 +49,14 @@ describe('Phase 11, Task 11.4 — Payment Webhook Handler & Cryptographic Signat
     });
     createdPlanIds.push(testPlan.id);
 
+    const testPlanPro = await adminPb.collection('subscription_plans').create({
+      name: `Webhook Pro Plan ${timestamp}`,
+      price: 999,
+      credits: 100,
+      is_active: true,
+    });
+    createdPlanIds.push(testPlanPro.id);
+
     // Create seeded pending payments
     const p1 = await adminPb.collection('payments').create({
       user: testCustomer.id,
@@ -63,7 +71,7 @@ describe('Phase 11, Task 11.4 — Payment Webhook Handler & Cryptographic Signat
 
     const p2 = await adminPb.collection('payments').create({
       user: testCustomer.id,
-      plan: testPlan.id,
+      plan: testPlanPro.id,
       amount: 999,
       currency: 'BDT',
       provider: 'mock',
@@ -366,19 +374,21 @@ describe('Phase 11, Task 11.4 — Payment Webhook Handler & Cryptographic Signat
   });
 
   // --------------------------------------------------------------------------
-  // 4. Strict Boundary: No Credit Allocation or Subscription Activation
+  // 4. Failed Webhook Verification (No Credit or Subscription Mutation)
   // --------------------------------------------------------------------------
-  describe('Strict Boundary Verification (No Credit or Subscription Mutation)', () => {
-    it('verifies that successful webhook verification NEVER creates subscriptions or allocates credits', async () => {
-      // 1. Snapshot all subscriptions in database before webhook
-      const subsBefore = await adminPb.collection('user_subscriptions').getFullList();
+  describe('Failed Webhook Verification (Zero Subscription & Zero Credit Allocation)', () => {
+    it('verifies that failed webhook verification NEVER creates subscriptions or allocates credits', async () => {
+      // 1. Snapshot customer subscriptions in database before webhook
+      const subsBefore = await adminPb.collection('user_subscriptions').getFullList({
+        filter: adminPb.filter('user = {:user}', { user: testCustomer.id }),
+      });
 
-      // 2. Send verified webhook
+      // 2. Send verified failed webhook
       const payloadObj = {
         providerRef: 'MOCK_TXN_NO_CREDIT_TEST',
         amount: 299,
         currency: 'BDT',
-        status: 'success',
+        status: 'failed',
       };
       const rawBody = Buffer.from(JSON.stringify(payloadObj), 'utf8');
       const signature = mockAdapter.computeSignature(rawBody);
@@ -394,8 +404,10 @@ describe('Phase 11, Task 11.4 — Payment Webhook Handler & Cryptographic Signat
 
       assert.equal(res.status, 200);
 
-      // 3. Snapshot all subscriptions after webhook
-      const subsAfter = await adminPb.collection('user_subscriptions').getFullList();
+      // 3. Snapshot customer subscriptions after webhook: must remain exactly identical
+      const subsAfter = await adminPb.collection('user_subscriptions').getFullList({
+        filter: adminPb.filter('user = {:user}', { user: testCustomer.id }),
+      });
       assert.equal(subsAfter.length, subsBefore.length);
     });
   });
