@@ -23,6 +23,7 @@ import AdminReviewQueuePage from '../pages/AdminReviewQueuePage.jsx';
 import AdminListingReviewPage from '../pages/AdminListingReviewPage.jsx';
 import AdminUsersPage from '../pages/AdminUsersPage.jsx';
 import PricingPage from '../pages/PricingPage.jsx';
+import NotificationsPage from '../pages/NotificationsPage.jsx';
 import NotFoundPage from '../pages/NotFoundPage.jsx';
 
 /**
@@ -53,6 +54,14 @@ export default function AppRouter() {
         <Route path="/" element={<HomePage />} />
         <Route path="/marketplace" element={<MarketplacePage />} />
         <Route path="/pricing" element={<PricingPage />} />
+        <Route
+          path="/notifications"
+          element={
+            <ProtectedRoute allowedRoles={['customer', 'owner']}>
+              <NotificationsPage />
+            </ProtectedRoute>
+          }
+        />
         <Route path="/listings" element={<Navigate to="/marketplace" replace />} />
         <Route path="/listings/:id" element={<ListingDetailPage />} />
       </Route>

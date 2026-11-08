@@ -4,6 +4,7 @@ import { useAuth } from '../../context/AuthContext.jsx';
 import { Button } from '../ui/button.jsx';
 import MobileNav from './MobileNav.jsx';
 import CreditBadge from '../common/CreditBadge.jsx';
+import NotificationBell from '../notifications/NotificationBell.jsx';
 import {
   StoreIcon,
   HomeIcon,
@@ -150,6 +151,9 @@ export default function Header() {
               {/* Customer Credit Balance Indicator */}
               <CreditBadge variant="header" />
 
+              {/* Notification Bell (Customer & Owner) */}
+              <NotificationBell />
+
               {/* User Identity Chip */}
               <div className="flex items-center gap-2.5">
                 <div className="w-8 h-8 rounded-full bg-primary/10 text-primary flex items-center justify-center font-semibold text-xs border border-primary/20">
@@ -196,8 +200,9 @@ export default function Header() {
           )}
         </div>
 
-        {/* Mobile Hamburger Menu Toggle (< md) */}
-        <div className="flex items-center md:hidden">
+        {/* Mobile Header Controls (< md) */}
+        <div className="flex items-center gap-1.5 md:hidden">
+          <NotificationBell />
           <button
             type="button"
             onClick={() => setIsMobileNavOpen(true)}

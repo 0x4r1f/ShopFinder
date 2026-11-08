@@ -1,20 +1,22 @@
 import { getAdminClient } from '../config/pocketbase.js';
 
 /**
- * ShopFinder — In-App Notification Service (Phase 11, Task 11.7)
+ * ShopFinder — In-App Notification Service (Phase 11, Tasks 11.7 & 11.8)
  *
- * Implements centralized in-app notification creation for listing moderation
- * and customer credit events:
+ * Implements centralized in-app notification creation, retrieval, and read-status mutations:
  * 1. listing_approved: Notifies listing owner upon successful admin approval.
  * 2. listing_rejected: Notifies listing owner upon successful admin rejection.
  * 3. credit_low: Notifies customer when available balance drops to <= threshold (2 credits).
+ * 4. User notification retrieval: Scoped strictly to authenticated user (GET /api/v1/notifications).
+ * 5. Mark as read: Single (PATCH /api/v1/notifications/:id/read) and all (PATCH /api/v1/notifications/read-all).
  *
  * ARCHITECTURAL INVARIANTS:
- * - Creates records via PocketBase Superuser Admin SDK singleton.
+ * - Creates, retrieves, and mutates records via PocketBase Superuser Admin SDK singleton.
+ * - Strict recipient scoping: user A cannot list or mutate user B's notifications.
  * - Validates recipient user ID, supported notification types, and non-empty messages.
  * - Protects against notification spam / duplicate deliveries.
  * - Never leaks superuser credentials, tokens, or private owner phone numbers.
- * - Non-fatal: notification failures never fail or roll back primary business operations.
+ * - Non-fatal in business operations: notification failures never fail or roll back listing/reveal workflows.
  */
 
 export const SUPPORTED_NOTIFICATION_TYPES = Object.freeze([
@@ -75,7 +77,7 @@ export async function createNotification({ userId, type, message }) {
   // Validate recipient user existence in users collection
   try {
     await pb.collection('users').getOne(cleanUserId);
-  } catch (userErr) {
+  } catch {
     const err = new Error(`Recipient user not found: '${cleanUserId}'`);
     err.status = 404;
     throw err;
@@ -268,3 +270,189 @@ export async function notifyCreditLow(customerId, creditsRemaining, threshold = 
   return { duplicate: false, skipped: false, notification: notif };
 }
 
+/**
+ * Retrieves paginated in-app notifications for an authenticated user (Phase 11, Task 11.8).
+ * Scoped strictly to the authenticated user ID (never exposes another user's notifications).
+ *
+ * @param {string} userId - Authenticated user ID (req.user.id)
+ * @param {Object} [options={}]
+ * @param {number} [options.page=1] - Page number (1-indexed)
+ * @param {number} [options.perPage=10] - Records per page (default: 10, max: 100)
+ * @returns {Promise<{
+ *   notifications: Array<Object>,
+ *   pagination: { page: number, perPage: number, totalItems: number, totalPages: number },
+ *   unread_count: number
+ * }>}
+ */
+export async function getUserNotifications(userId, options = {}) {
+  if (!userId || typeof userId !== 'string' || userId.trim() === '') {
+    const err = new Error('User ID is required');
+    err.status = 400;
+    throw err;
+  }
+
+  const cleanUserId = userId.trim();
+  const page = Math.max(1, parseInt(options.page, 10) || 1);
+  const perPage = Math.min(100, Math.max(1, parseInt(options.perPage, 10) || 10));
+
+  const pb = await getAdminClient();
+
+  let listResult;
+  let unreadResult;
+  try {
+    [listResult, unreadResult] = await Promise.all([
+      pb.collection('notifications').getList(page, perPage, {
+        filter: pb.filter('user = {:user}', { user: cleanUserId }),
+        sort: '-created',
+        requestKey: null,
+      }),
+      pb.collection('notifications').getList(1, 1, {
+        filter: pb.filter('user = {:user} && is_read = false', { user: cleanUserId }),
+        requestKey: null,
+      }),
+    ]);
+  } catch (dbErr) {
+    const safeErr = new Error('Failed to retrieve notifications');
+    safeErr.status = dbErr?.status || 500;
+    throw safeErr;
+  }
+
+  const notifications = (listResult?.items || []).map((n) => ({
+    id: n.id,
+    user: n.user,
+    type: n.type,
+    message: n.message,
+    is_read: Boolean(n.is_read),
+    created: n.created,
+  }));
+
+  return {
+    notifications,
+    pagination: {
+      page: listResult?.page || page,
+      perPage: listResult?.perPage || perPage,
+      totalItems: listResult?.totalItems || 0,
+      totalPages: listResult?.totalPages || 0,
+    },
+    unread_count: unreadResult?.totalItems || 0,
+  };
+}
+
+/**
+ * Marks a single notification as read for the authenticated user (Phase 11, Task 11.8).
+ * Enforces strict ownership check (user A cannot mark user B's notification read).
+ *
+ * @param {string} notificationId - Notification ID
+ * @param {string} userId - Authenticated user ID (req.user.id)
+ * @returns {Promise<Object>} Normalized updated notification record
+ */
+export async function markNotificationAsRead(notificationId, userId) {
+  if (!notificationId || typeof notificationId !== 'string' || notificationId.trim() === '') {
+    const err = new Error('Notification ID is required');
+    err.status = 400;
+    throw err;
+  }
+
+  if (!userId || typeof userId !== 'string' || userId.trim() === '') {
+    const err = new Error('User ID is required');
+    err.status = 400;
+    throw err;
+  }
+
+  const cleanNotifId = notificationId.trim();
+  const cleanUserId = userId.trim();
+
+  const pb = await getAdminClient();
+
+  let record;
+  try {
+    record = await pb.collection('notifications').getOne(cleanNotifId, { requestKey: null });
+  } catch {
+    const err = new Error('Notification not found');
+    err.status = 404;
+    throw err;
+  }
+
+  // Strict ownership check
+  if (record.user !== cleanUserId) {
+    const err = new Error('Forbidden: you do not have permission to modify this notification');
+    err.status = 403;
+    throw err;
+  }
+
+  // Idempotent: if already read, return existing state
+  if (record.is_read !== true) {
+    try {
+      record = await pb.collection('notifications').update(
+        cleanNotifId,
+        { is_read: true },
+        { requestKey: null }
+      );
+    } catch (updateErr) {
+      const err = new Error('Failed to update notification');
+      err.status = updateErr?.status || 500;
+      throw err;
+    }
+  }
+
+  return {
+    id: record.id,
+    user: record.user,
+    type: record.type,
+    message: record.message,
+    is_read: true,
+    created: record.created,
+    updated: record.updated || record.created,
+  };
+}
+
+/**
+ * Marks all unread notifications as read for the authenticated user (Phase 11, Task 11.8).
+ * Scoped strictly to the authenticated user ID.
+ *
+ * @param {string} userId - Authenticated user ID (req.user.id)
+ * @returns {Promise<{ updated_count: number }>}
+ */
+export async function markAllNotificationsAsRead(userId) {
+  if (!userId || typeof userId !== 'string' || userId.trim() === '') {
+    const err = new Error('User ID is required');
+    err.status = 400;
+    throw err;
+  }
+
+  const cleanUserId = userId.trim();
+  const pb = await getAdminClient();
+
+  let unreadItems = [];
+  try {
+    unreadItems = await pb.collection('notifications').getFullList({
+      filter: pb.filter('user = {:user} && is_read = false', { user: cleanUserId }),
+      requestKey: null,
+    });
+  } catch (fetchErr) {
+    const err = new Error('Failed to retrieve unread notifications');
+    err.status = fetchErr?.status || 500;
+    throw err;
+  }
+
+  if (unreadItems.length === 0) {
+    return { updated_count: 0 };
+  }
+
+  // Update unread notifications to is_read = true
+  let successCount = 0;
+  for (const item of unreadItems) {
+    try {
+      await pb.collection('notifications').update(
+        item.id,
+        { is_read: true },
+        { requestKey: null }
+      );
+      successCount++;
+    } catch {
+      // Continue updating remaining records
+    }
+  }
+
+  return { updated_count: successCount };
+}
