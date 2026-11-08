@@ -258,17 +258,43 @@ export async function handlePaymentWebhook(req, res, next) {
       );
     }
 
-    // 5. Acknowledge verified webhook (Task 11.4 boundary: zero credit allocation)
+    const verifiedProvider = verificationResult.provider;
+    const verifiedProviderRef = verificationResult.providerRef;
+    const verifiedStatus = verificationResult.status;
+
+    if (!verifiedProviderRef || verifiedProviderRef === 'UNKNOWN') {
+      return sendError(res, 'Missing or invalid payment provider reference', 400);
+    }
+
+    // 5. Atomic Payment Idempotency & Duplicate Webhook Protection (D-009, D-013)
+    const adminPb = await getAdminClient();
+    let processResult;
+    try {
+      const hookResponse = await adminPb.send('/api/custom/payment-process', {
+        method: 'POST',
+        body: {
+          provider: verifiedProvider,
+          providerRef: verifiedProviderRef,
+          status: verifiedStatus,
+          ...(req.body?.testRollback ? { testRollback: true } : {}),
+        },
+      });
+      processResult = {
+        verified: true,
+        ...hookResponse.data,
+      };
+    } catch (procErr) {
+      const errStatus = procErr.status || (procErr.statusCode >= 400 && procErr.statusCode <= 599 ? procErr.statusCode : 500);
+      const errMsg = procErr.response?.message || procErr.message || 'Payment processing failed';
+      return sendError(res, errMsg, errStatus);
+    }
+
+    // 6. Return normalized response acknowledging duplicate or new processing with HTTP 200
     return sendSuccess(
       res,
-      {
-        verified: true,
-        provider: verificationResult.provider,
-        providerRef: verificationResult.providerRef,
-        status: verificationResult.status,
-      },
+      processResult,
       200,
-      'Webhook notification verified successfully'
+      processResult.duplicate ? 'Payment already processed' : 'Payment processed successfully'
     );
   } catch (err) {
     if (err.status && err.status >= 400 && err.status < 500) {
