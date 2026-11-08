@@ -13,6 +13,7 @@ import favoritesRoutes from './routes/favorites.routes.js';
 import customerRoutes from './routes/customer.routes.js';
 import subscriptionsRoutes from './routes/subscriptions.routes.js';
 import revealRoutes from './routes/reveal.routes.js';
+import paymentRoutes from './routes/payment.routes.js';
 
 const app = express();
 
@@ -75,7 +76,10 @@ app.use('/api/v1/subscriptions', subscriptionsRoutes);
 // 13. Contact Reveal API Routes (Phase 10, Task 10.7)
 app.use('/api/v1/reveal', revealRoutes);
 
-// 14. Health Check Endpoint (Free of sensitive info)
+// 14. Payment API Routes (Phase 11, Task 11.3)
+app.use('/api/v1/payments', paymentRoutes);
+
+// 15. Health Check Endpoint (Free of sensitive info)
 app.get('/health', (req, res) => {
   res.status(200).json({
     status: 'ok',
