@@ -1,4 +1,5 @@
 import { getAdminClient } from '../config/pocketbase.js';
+import { notifyListingApproved, notifyListingRejected } from './notificationService.js';
 
 /**
  * ShopFinder — Admin Service Layer (Phase 7, Task 7.1)
@@ -423,6 +424,13 @@ export async function approveListing(id, adminUserId) {
   await populateMissingCoverImages([sanitized], pb);
   await populateMissingOwnerDetails([sanitized], pb);
 
+  // Trigger in-app notification to listing owner (Phase 11, Task 11.7)
+  try {
+    await notifyListingApproved(updated, ownerId);
+  } catch (notifErr) {
+    // Non-fatal: notification delivery failure must never revert successful listing approval
+  }
+
   return sanitized;
 }
 
@@ -480,6 +488,13 @@ export async function rejectListing(id, adminUserId, rejectionNote) {
   const sanitized = sanitizeAdminListing(updated, pb);
   await populateMissingCoverImages([sanitized], pb);
   await populateMissingOwnerDetails([sanitized], pb);
+
+  // Trigger in-app notification to listing owner (Phase 11, Task 11.7)
+  try {
+    await notifyListingRejected(updated, ownerId, rejectionNote);
+  } catch (notifErr) {
+    // Non-fatal: notification delivery failure must never revert successful listing rejection
+  }
 
   return sanitized;
 }

@@ -1,6 +1,7 @@
 import { getAdminClient } from '../config/pocketbase.js';
 import { env } from '../config/env.js';
 import { sendError } from '../utils/apiResponse.js';
+import { notifyCreditLow } from './notificationService.js';
 
 /**
  * ShopFinder — Contact Reveal Service Layer (Phase 10, Task 10.2)
@@ -287,7 +288,7 @@ export async function revealContactForCustomer({ customerId, listingId } = {}) {
   const contactData = contactResponse?.data || {};
 
   // 3. Assemble unified customer payload
-  return {
+  const result = {
     listingId: cleanListingId,
     ownerId: revealData.ownerId || contactData.ownerId || null,
     phone: contactData.phone || '',
@@ -298,6 +299,17 @@ export async function revealContactForCustomer({ customerId, listingId } = {}) {
     revealId: revealData.revealId || null,
     revealedAt: revealData.revealedAt || null,
   };
+
+  // 4. Trigger low-credit in-app notification if legitimate credit deduction caused balance to drop to <= threshold (Phase 11, Task 11.7)
+  if (result.creditDeducted && typeof result.creditsRemaining === 'number') {
+    try {
+      await notifyCreditLow(cleanCustomerId, result.creditsRemaining);
+    } catch (notifErr) {
+      // Non-fatal: notification delivery failure must never disrupt successful contact reveal
+    }
+  }
+
+  return result;
 }
 
 /**
