@@ -76,8 +76,8 @@ routerAdd("POST", "/api/custom/reveal", (e) => {
         throw new BadRequestError("Target user is not an authorized customer.");
       }
 
-      // Active status verification: reject deactivated customers
-      if (customerRecord.get("is_active") === false) {
+      // Active status verification: strictly require is_active === true (rejects false, null, undefined, missing)
+      if (customerRecord.get("is_active") !== true) {
         throw new BadRequestError("Customer account is deactivated.");
       }
 
@@ -234,7 +234,7 @@ routerAdd("POST", "/api/custom/reveal", (e) => {
         throw new BadRequestError("Listing owner account not found.");
       }
 
-      if (!ownerRecord || ownerRecord.get("role") !== "owner" || ownerRecord.get("is_active") === false) {
+      if (!ownerRecord || ownerRecord.get("role") !== "owner" || ownerRecord.get("is_active") !== true) {
         throw new BadRequestError("Listing owner is invalid or inactive.");
       }
 

@@ -43,6 +43,47 @@ export function rejectClientIdentityOverride(req, res, next) {
 }
 
 /**
+ * Express middleware to strictly reject client attempts to provide or override
+ * customerId, ownerId, or phone in body, query, or headers (Task 10.6).
+ *
+ * @param {import('express').Request} req - Express request object
+ * @param {import('express').Response} res - Express response object
+ * @param {import('express').NextFunction} next - Express next function
+ */
+export function rejectClientContactOverrides(req, res, next) {
+  if (
+    req.body?.customerId !== undefined ||
+    req.query?.customerId !== undefined ||
+    req.headers?.['x-customer-id'] !== undefined ||
+    req.headers?.['customer-id'] !== undefined
+  ) {
+    return sendError(
+      res,
+      'Client-supplied customerId is strictly prohibited. Identity is derived exclusively from your authenticated session.',
+      400
+    );
+  }
+
+  if (req.body?.ownerId !== undefined || req.query?.ownerId !== undefined) {
+    return sendError(
+      res,
+      'Client-supplied ownerId is prohibited. Owner relation is derived from verified listing records.',
+      400
+    );
+  }
+
+  if (req.body?.phone !== undefined || req.query?.phone !== undefined) {
+    return sendError(
+      res,
+      'Client-supplied phone is prohibited.',
+      400
+    );
+  }
+
+  return next();
+}
+
+/**
  * Extracts and validates the trusted customer ID exclusively from authenticated req.user.id.
  * Rejects any client-supplied customerId overrides in body, query, or headers.
  *
@@ -139,6 +180,50 @@ export async function delegateRevealTransaction({
   } catch (pbErr) {
     const status = pbErr?.status || 500;
     const message = pbErr?.response?.message || pbErr?.message || 'Contact reveal transaction failed';
+    const err = new Error(message);
+    err.status = status;
+    throw err;
+  }
+}
+
+/**
+ * Retrieves the private owner phone for an authorized customer who has an existing reveal
+ * record for the requested listing (D-014 & D-017).
+ *
+ * @param {Object} params
+ * @param {string} params.customerId - Authenticated customer's user ID (req.user.id)
+ * @param {string} params.listingId - Listing ID
+ * @returns {Promise<{ success: boolean, message: string, data: { status: string, listingId: string, ownerId: string, phone: string } }>}
+ */
+export async function getRevealedOwnerContact({ customerId, listingId } = {}) {
+  if (!customerId || typeof customerId !== 'string' || customerId.trim() === '') {
+    const err = new Error('customerId is required and must be a non-empty string.');
+    err.status = 400;
+    throw err;
+  }
+
+  if (!listingId || typeof listingId !== 'string' || listingId.trim() === '') {
+    const err = new Error('listingId is required and must be a non-empty string.');
+    err.status = 400;
+    throw err;
+  }
+
+  const cleanCustomerId = customerId.trim();
+  const cleanListingId = listingId.trim();
+  const pb = await getAdminClient();
+
+  try {
+    const response = await pb.send('/api/custom/contact-retrieval', {
+      method: 'POST',
+      body: {
+        customerId: cleanCustomerId,
+        listingId: cleanListingId,
+      },
+    });
+    return response;
+  } catch (pbErr) {
+    const status = pbErr?.status || 500;
+    const message = pbErr?.response?.message || pbErr?.message || 'Failed to retrieve owner contact';
     const err = new Error(message);
     err.status = status;
     throw err;
