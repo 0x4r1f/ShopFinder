@@ -99,11 +99,34 @@ This decision governs:
 
 ---
 
-## D-003: First Payment Provider
-- **Status:** ❓ Not yet decided
-- **Options:** bKash, SSLCommerz, Stripe
-- **Impact:** Determines Phase 11 (Payment & Notifications) implementation details.
-- **Note:** Architecture is provider-agnostic; only the adapter changes.
+## D-003: First Payment Provider Adapter (SSLCommerz & Mock Adapter) — **APPROVED**
+- **Date approved:** 2026-11-08
+- **Status:** ✅ Approved
+- **Decision:**
+  Formally approve **SSLCommerz** as ShopFinder's first production payment gateway adapter, paired with a deterministic **Mock payment adapter** for local development and automated testing, within a strictly provider-agnostic payment architecture.
+  - **Primary Production Provider:** SSLCommerz (hosted checkout / IPN webhook).
+  - **Testing & Local Development:** Mock payment adapter (`mockAdapter.js`) simulating payment initiation, user redirect, and webhook dispatch without external network calls or banking credentials.
+  - **Transaction Currency:** BDT (Bangladeshi Taka).
+  - **Billing & Credit Policy Alignment (D-001):**
+    - One-time credit packages only: Starter (৳299 / 10 credits) and Pro (৳999 / 100 credits).
+    - Credits never expire (`expires_at = null`).
+    - Stacking: multiple purchases aggregate via distinct `user_subscriptions` records.
+  - **Provider-Agnostic Architectural Separation:**
+    - Core payment service: `server/src/services/paymentService.js` contains authoritative business logic (session initiation, idempotency validation, order creation, transaction status lifecycle, subscription/credit fulfillment) and zero provider-specific gateway SDK or payload logic.
+    - Modular provider adapters: `server/src/services/providers/` implements a uniform adapter contract (`initiatePayment`, `verifyWebhook`, `validateTransaction`).
+    - Concrete adapters: `server/src/services/providers/sslcommerzAdapter.js` and `server/src/services/providers/mockAdapter.js`.
+  - **Security & Fulfillment Invariants:**
+    - **Raw-Body Cryptographic Signature Verification:** Webhook endpoints (`POST /api/v1/payments/webhook`) must inspect the raw, unparsed request payload buffer before any JSON parsing to compute HMAC signatures / checksum digests.
+    - **Constant-Time Signature Comparison:** All signature comparisons must utilize constant-time comparison (`crypto.timingSafeEqual`) to eliminate timing side-channel attacks.
+    - **Server-Side-Only Credit Allocation:** Credit top-ups and `user_subscriptions` creation are triggered exclusively via verified server-side payment confirmation (webhook IPN or server-to-server query validation).
+    - **Zero Trust in Frontend Callbacks:** Browser redirects, return URLs (`/payment/success`), and client-side parameters are treated as untrusted navigation signals only. They must never directly or independently trigger credit allocation or database updates.
+    - **Payment Idempotency (D-009):** Every payment transaction record maintains a unique `provider_ref`. Before processing any webhook or top-up event, the service checks `payments` for an existing record with matching `provider_ref` and `status === 'success'`. If already processed, the duplicate webhook is acknowledged with HTTP 200 immediately with zero duplicate credit top-ups or duplicate subscription records.
+- **Reason:**
+  1. **Bangladesh Multi-Channel Coverage:** In the Bangladesh commercial real estate ecosystem, commercial tenants and property owners utilize diverse payment channels. SSLCommerz aggregates the dominant Mobile Financial Services (bKash, Nagad, Rocket), local debit/credit cards (Visa, Mastercard), and internet banking rails under a single unified gateway, avoiding single-wallet vendor lock-in.
+  2. **Sandbox & IPN Webhook Maturity:** SSLCommerz provides a structured sandbox environment with Instant Payment Notification (IPN) webhook support for secure server-to-server transaction verification.
+  3. **Architectural Portability:** Enforcing the adapter pattern guarantees that future payment gateways (such as direct bKash Tokenized Checkout or Stripe for international cards) can be added cleanly by implementing an adapter without altering core payment or credit orchestration.
+  4. **Deterministic Testing:** A first-class mock adapter enables continuous integration, end-to-end testing, and local offline development with 100% determinism.
+- **Authorized by:** Project operator approval 2026-11-08
 
 ---
 

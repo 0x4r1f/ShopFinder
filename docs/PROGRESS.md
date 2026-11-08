@@ -169,11 +169,25 @@
 
 ---
 
-## Phases 11–14: NOT STARTED ☐
+## PHASE 11 — Payment & Notifications: IN PROGRESS 🔄
+
+| Task | Status | Notes |
+|------|:---:|-------|
+| 11.1 Resolve D-003: Select first payment provider adapter (bKash / SSLCommerz / Stripe) | ✅ | Formally resolved D-003. Selected SSLCommerz as the primary payment provider for the Bangladesh-focused BDT marketplace with multi-channel support (bKash, Nagad, Rocket, local debit/credit cards) alongside a deterministic Mock adapter for local development and CI testing. Architecturally separated into provider-agnostic core service (`server/src/services/paymentService.js`) and modular adapters (`server/src/services/providers/`). Enforced raw-body webhook signature verification with constant-time comparison, server-side-only credit allocation upon verified payment success, and duplicate webhook protection via `provider_ref` (preserving D-009). Next task: 11.2 (Implement provider-agnostic payment service layer). |
+| 11.2 Implement provider-agnostic payment service layer (`server/src/services/paymentService.js`) | ☐ | Next task |
+| 11.3 Implement payment initiation endpoint (`POST /api/v1/payments/initiate`) creating `pending` record in `payments` collection | ☐ | Pending |
+| 11.4 Implement webhook handler (`POST /api/v1/payments/webhook`) with raw-body cryptographic signature verification | ☐ | Pending |
+| 11.5 Implement payment idempotency check using `provider_ref` to guarantee duplicate webhook deliveries never cause duplicate credit top-ups | ☐ | Pending |
+| 11.6 Implement server-side credit top-up and subscription activation on verified payment success | ☐ | Pending |
+| 11.7 Implement in-app notification service (`server/src/services/notificationService.js`) triggering alerts on listing approval/rejection and low credits | ☐ | Pending |
+| 11.8 Build customer & owner in-app notification bell, notification list dropdown, and mark-as-read endpoints | ☐ | Pending |
+
+---
+
+## Phases 12–14: NOT STARTED ☐
 
 | Phase | Name | Status |
 |:---:|---|:---:|
-| **Phase 11** | Payment & Notifications | ☐ Not started |
 | **Phase 12** | Analytics & Final UI | ☐ Not started |
 | **Phase 13** | Security & QA | ☐ Not started |
 | **Phase 14** | Deployment Preparation | ☐ Not started |
@@ -184,7 +198,6 @@
 
 | # | Decision | Status | Required By |
 |---|----------|--------|-------------|
-| D-003 | First payment provider to integrate (bKash / SSLCommerz / Stripe)? | ❓ Not yet decided | Phase 11 (Payment & Notifications) |
 | D-004 | PocketBase hosting: local only or cloud (PocketHost)? | ❓ Not yet decided | Phase 14 (Deployment Preparation) |
 
 ---
@@ -195,6 +208,7 @@
 |---|----------|--------|---------------------|
 | D-001 | Customer billing policy (one-time packages vs recurring) | ✅ Approved | One-time credit packages (Starter ৳299 / 10 credits, Pro ৳999 / 100 credits). Credits never expire (`expires_at = null`). Multiple purchases aggregate. Resolved before Phase 9 implementation. |
 | D-002 | Major listing edit & image modification re-approval | ✅ Approved | Any permitted core-field or image edit (upload, delete, cover change, reorder) on an `approved` listing automatically reverts status to `pending`. `pending`, `rejected`, and `archived` remain unchanged. Implemented in Phase 6, Tasks 6.2 & 6.3. |
+| D-003 | First payment provider adapter | ✅ Approved | SSLCommerz selected as primary provider for BDT multi-channel MFS/cards; mock adapter required for local/CI testing; provider-agnostic service architecture preserved. Resolved in Task 11.1. |
 | D-005 | Owner subscription plans at launch | ❌ Free at launch | Architecture supports future plans |
 | D-006 | Official Technology Stack locked | ✅ Approved | React 18, Tailwind, shadcn/ui, Express, PocketBase |
 | D-007 | Client never talks directly to PocketBase | ✅ Approved | Express API is sole entry point |
