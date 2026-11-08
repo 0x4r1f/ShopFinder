@@ -1,6 +1,10 @@
-import React from 'react';
-import { UserIcon, LockIcon } from '../common/Icons.jsx';
+import React, { useState } from 'react';
+import { Link } from 'react-router-dom';
+import { UserIcon, LockIcon, PhoneIcon } from '../common/Icons.jsx';
 import { Button } from '../ui/button.jsx';
+import { useAuth } from '../../context/AuthContext.jsx';
+import { useCredits } from '../../context/CreditContext.jsx';
+import ContactRevealModal from './ContactRevealModal.jsx';
 
 /**
  * Formats a user creation ISO date string into a friendly "Member since [Month Year]" string.
@@ -21,24 +25,40 @@ export function formatMemberSince(createdDate) {
 }
 
 /**
- * ShopFinder — Safe Owner Information Card (Phase 5, Task 5.6)
+ * ShopFinder — Safe Owner Information Card & Contact Reveal Trigger (Phase 10, Task 10.9)
  *
  * Renders verified public owner metadata with strict privacy boundaries:
  * - Public display name only
  * - Member since date (derived from owner.created)
- * - Explicit indication that contact number is protected and not publicly displayed
- * - Clear, non-functional contact action demarcation reserved for Phase 10 (Contact Reveal Engine)
- * - Zero phone number retrieval or frontend masking (D-014)
- * - Zero invented verification badges, ratings, or unsupported claims
+ * - Explicit indication that contact number is protected (D-014)
+ * - Prominent "Reveal Contact" action for authenticated customers
+ * - Redirect to /login?redirect=/listings/:id for anonymous visitors
+ * - Disabled contact reveal indicator for owner/admin accounts
+ * - Mounts ContactRevealModal for secure credit verification and contact revelation
  *
  * @param {Object} props
  * @param {Object|null} [props.owner] - Sanitized public owner profile { id, name, created }
+ * @param {Object|null} [props.listing] - Commercial listing details { id, title, city, area }
  * @param {string} [props.className]
+ * @param {Function} [props.onRevealSuccess] - Optional callback after successful reveal
  */
-export default function OwnerInfoCard({ owner = null, className = '' }) {
+export default function OwnerInfoCard({
+  owner = null,
+  listing = null,
+  className = '',
+  onRevealSuccess = null,
+}) {
+  const { user, isAuthenticated } = useAuth();
+  const { isCustomer } = useCredits();
+  const [isModalOpen, setIsModalOpen] = useState(false);
+
   const displayName = owner?.name?.trim() ? owner.name.trim() : 'Property Owner';
   const memberSince = formatMemberSince(owner?.created);
   const initial = displayName.charAt(0).toUpperCase();
+
+  const isOwnerOrAdmin = isAuthenticated && (user?.role === 'owner' || user?.role === 'admin');
+  const redirectTarget = listing?.id ? `/listings/${listing.id}` : '/marketplace';
+  const loginUrl = `/login?redirect=${encodeURIComponent(redirectTarget)}`;
 
   return (
     <div
@@ -80,23 +100,80 @@ export default function OwnerInfoCard({ owner = null, className = '' }) {
         </p>
       </div>
 
-      {/* Contact Action Boundary (Phase 10: Contact Reveal Engine) */}
+      {/* Contact Action Boundary (Phase 10: Interactive Contact Reveal Engine) */}
       <div className="space-y-2 pt-1">
-        <Button
-          type="button"
-          variant="outline"
-          className="w-full font-medium py-2.5 cursor-not-allowed opacity-60 border-dashed"
-          disabled
-          aria-disabled="true"
-          title="Direct contact reveal will be available in Phase 10"
-        >
-          Contact Owner (Available in Phase 10)
-        </Button>
-        <p className="text-[11px] text-center text-muted-foreground leading-normal">
-          Direct contact reveal is scheduled for implementation in Phase 10.
-        </p>
+        {!isAuthenticated ? (
+          /* Anonymous Visitor: Link to login with return redirect */
+          <>
+            <Button
+              asChild
+              className="w-full font-semibold py-2.5"
+            >
+              <Link to={loginUrl}>
+                <PhoneIcon className="w-4 h-4 mr-2" />
+                Sign In to Reveal Contact
+              </Link>
+            </Button>
+            <p className="text-[11px] text-center text-muted-foreground leading-normal">
+              Sign in with a customer account to unlock owner phone numbers.
+            </p>
+          </>
+        ) : isCustomer ? (
+          /* Authenticated Customer: Open Contact Reveal Modal */
+          <>
+            <Button
+              type="button"
+              onClick={() => setIsModalOpen(true)}
+              className="w-full font-semibold py-2.5 shadow-sm"
+              data-testid="reveal-contact-button"
+            >
+              <PhoneIcon className="w-4 h-4 mr-2" />
+              Reveal Contact (1 Credit)
+            </Button>
+            <p className="text-[11px] text-center text-muted-foreground leading-normal">
+              1 credit per listing • Free permanent repeat view
+            </p>
+          </>
+        ) : isOwnerOrAdmin ? (
+          /* Authenticated Owner or Admin: Disabled with explanatory notice */
+          <>
+            <Button
+              type="button"
+              variant="outline"
+              disabled
+              aria-disabled="true"
+              className="w-full font-medium py-2.5 cursor-not-allowed opacity-60 border-dashed"
+              title="Contact reveal is reserved for customer accounts"
+            >
+              <PhoneIcon className="w-4 h-4 mr-2" />
+              Reveal Contact (Customers Only)
+            </Button>
+            <p className="text-[11px] text-center text-muted-foreground leading-normal">
+              Contact reveal is reserved exclusively for verified customer accounts.
+            </p>
+          </>
+        ) : (
+          /* Safe Fallback */
+          <Button
+            type="button"
+            variant="outline"
+            disabled
+            className="w-full font-medium py-2.5 opacity-60"
+          >
+            Contact Owner
+          </Button>
+        )}
       </div>
+
+      {/* Contact Reveal Modal */}
+      {isCustomer && listing && (
+        <ContactRevealModal
+          isOpen={isModalOpen}
+          listing={listing}
+          onClose={() => setIsModalOpen(false)}
+          onSuccess={onRevealSuccess}
+        />
+      )}
     </div>
   );
 }
-

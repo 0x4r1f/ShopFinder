@@ -94,6 +94,14 @@ export function CreditProvider({
     return promise;
   }, [isCustomer]);
 
+  /**
+   * Immediate synchronous credit balance updater (e.g. after reveal API response).
+   */
+  const updateCreditBalance = useCallback((newCredits) => {
+    const num = Number(newCredits);
+    setCredits(Number.isFinite(num) && num >= 0 ? num : 0);
+  }, []);
+
   // Fetch credits when customer session is established or changed
   useEffect(() => {
     if (isCustomer && initialCredits === null && !initialError) {
@@ -120,6 +128,7 @@ export function CreditProvider({
     loading: isCustomer ? loading : false,
     error: isCustomer ? error : null,
     refreshCredits: fetchCredits,
+    setCredits: updateCreditBalance,
     isCustomer,
   };
 
@@ -138,6 +147,7 @@ export function CreditProvider({
  *   loading: boolean,
  *   error: string|null,
  *   refreshCredits: () => Promise<void>,
+ *   setCredits: (newCredits: number) => void,
  *   isCustomer: boolean
  * }}
  */
@@ -151,6 +161,7 @@ export function useCredits() {
       loading: false,
       error: null,
       refreshCredits: async () => {},
+      setCredits: () => {},
       isCustomer: false,
     };
   }

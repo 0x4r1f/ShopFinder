@@ -432,8 +432,8 @@ export default function ListingDetailPage() {
             </div>
           </div>
 
-          {/* Safe Owner Information Card (Task 5.6) */}
-          <OwnerInfoCard owner={listing.owner} />
+          {/* Safe Owner Information Card & Contact Reveal (Phase 10, Task 10.9) */}
+          <OwnerInfoCard owner={listing.owner} listing={listing} />
         </aside>
       </div>
     </div>
